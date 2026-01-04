@@ -153,4 +153,9 @@ defmodule CljCompilerTest do
     assert ClojureProject.Example.Data.remove_multiple(original) == %{a: 1, d: 4}
   end
 
+  test "dissoc with many keys" do
+    original = %{a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7}
+    assert ClojureProject.Example.Data.remove_many(original) == %{a: 1, g: 7}
+  end
+
 end

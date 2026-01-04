@@ -202,7 +202,7 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [x] Keyword-as-function for map access
 - [x] get function for map access
 - [x] assoc function for map updates
-- [x] dissoc function for map key removal
+- [x] dissoc function for map key removal (variadic)
 
 ### Not Yet Implemented
 - [ ] `recur` as special tail-call form
@@ -325,12 +325,20 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - `get/2` retrieves value for key, `get/3` provides default value
 - Added `CljCompiler.Runtime.assoc/3` for adding/updating map keys
 - Translates to `Map.put/3` in Elixir
-- Added `CljCompiler.Runtime.dissoc/2`, `dissoc/3`, `dissoc/4` for key removal
-- Supports removing 1-3 keys from map
-- Translates to `Map.delete/2` with pipeline for multiple keys
+- Added `CljCompiler.Runtime.dissoc/2` for variadic key removal
+- Supports removing any number of keys from map
+- Uses `Enum.reduce` with `Map.delete/2` for multiple keys
+- Translator collects keys into list for variadic support
 - Special handling in translator for all three functions
 - Added tests for get with/without default, assoc add/update, dissoc single/multiple
 - All 27 tests passing with map access functions
+
+**Variadic dissoc**: Support for any number of keys in dissoc
+- Refactored dissoc from multiple arities to single variadic implementation
+- `dissoc/2` handles single key or list of keys
+- Translator wraps multiple keys into list at compile time
+- Added test for dissoc with 5 keys
+- All 28 tests passing with variadic dissoc
 
 
 

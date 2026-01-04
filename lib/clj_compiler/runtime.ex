@@ -25,20 +25,11 @@ defmodule CljCompiler.Runtime do
     Map.put(map, key, value)
   end
 
+  def dissoc(map, keys) when is_list(keys) do
+    Enum.reduce(keys, map, fn key, acc -> Map.delete(acc, key) end)
+  end
+
   def dissoc(map, key) do
     Map.delete(map, key)
-  end
-
-  def dissoc(map, key1, key2) do
-    map
-    |> Map.delete(key1)
-    |> Map.delete(key2)
-  end
-
-  def dissoc(map, key1, key2, key3) do
-    map
-    |> Map.delete(key1)
-    |> Map.delete(key2)
-    |> Map.delete(key3)
   end
 end

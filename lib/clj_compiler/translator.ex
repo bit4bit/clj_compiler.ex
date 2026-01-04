@@ -153,8 +153,15 @@ defmodule CljCompiler.Translator do
           end
 
         fn_name == "dissoc" ->
-          quote do
-            CljCompiler.Runtime.dissoc(unquote_splicing(translated_args))
+          case translated_args do
+            [map_ast] ->
+              quote do
+                CljCompiler.Runtime.dissoc(unquote(map_ast))
+              end
+            [map_ast | keys_ast] ->
+              quote do
+                CljCompiler.Runtime.dissoc(unquote(map_ast), [unquote_splicing(keys_ast)])
+              end
           end
 
         fn_name in @built_in_ops ->

@@ -25,3 +25,5 @@
 (defn remove_city [person] (dissoc person :city))
 
 (defn remove_multiple [m] (dissoc m :b :c))
+
+(defn remove_many [m] (dissoc m :b :c :d :e :f))
