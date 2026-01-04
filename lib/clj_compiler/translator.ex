@@ -11,8 +11,19 @@ defmodule CljCompiler.Translator do
     |> List.flatten()
   end
 
+  defp translate_form({:list, [{:symbol, "ns"} | _], _line}, _parent_module, _function_names, _attr_names, _param_names, _file) do
+    []
+  end
+
   defp translate_form({:list, [{:symbol, "ns"} | _]}, _parent_module, _function_names, _attr_names, _param_names, _file) do
     []
+  end
+
+  defp translate_form({:list, [{:symbol, "def"}, {:symbol, name}, value], _line}, parent_module, function_names, attr_names, _param_names, file) do
+    attr_name = name |> String.replace("-", "_") |> String.to_atom()
+    value_ast = translate_expr(value, parent_module, function_names, attr_names, [], file)
+
+    {:@, [file: to_charlist(file), line: 1], [{attr_name, [], [value_ast]}]}
   end
 
   defp translate_form({:list, [{:symbol, "def"}, {:symbol, name}, value]}, parent_module, function_names, attr_names, _param_names, file) do
@@ -20,6 +31,22 @@ defmodule CljCompiler.Translator do
     value_ast = translate_expr(value, parent_module, function_names, attr_names, [], file)
 
     {:@, [file: to_charlist(file), line: 1], [{attr_name, [], [value_ast]}]}
+  end
+
+  defp translate_form({:list, [{:symbol, "defn"}, {:symbol, name}, {:vector, params} | body], line}, parent_module, function_names, attr_names, _param_names, file) do
+    function_name = name |> String.replace("-", "_") |> String.to_atom()
+
+    param_names = Enum.map(params, fn {:symbol, p} -> p end)
+    param_vars = Enum.map(params, fn {:symbol, p} ->
+      {String.to_atom(p), [file: to_charlist(file), line: line], nil}
+    end)
+
+    body_ast = translate_body(body, parent_module, function_names, attr_names, param_names, file)
+
+    {:def, [file: to_charlist(file), line: line], [
+      {function_name, [file: to_charlist(file), line: line], param_vars},
+      [do: body_ast]
+    ]}
   end
 
   defp translate_form({:list, [{:symbol, "defn"}, {:symbol, name}, {:vector, params} | body]}, parent_module, function_names, attr_names, _param_names, file) do
@@ -38,6 +65,13 @@ defmodule CljCompiler.Translator do
     ]}
   end
 
+  defp translate_form({:list, [{:symbol, unknown_symbol} | _], line}, _parent_module, _function_names, _attr_names, _param_names, file) do
+    raise CompileError,
+      file: file,
+      line: line,
+      description: "Unable to resolve symbol: #{unknown_symbol} in this context"
+  end
+
   defp translate_form({:list, [{:symbol, unknown_symbol} | _]}, _parent_module, _function_names, _attr_names, _param_names, file) do
     raise CompileError,
       file: file,
@@ -50,6 +84,7 @@ defmodule CljCompiler.Translator do
   defp extract_function_names(forms) do
     forms
     |> Enum.flat_map(fn
+      {:list, [{:symbol, "defn"}, {:symbol, name} | _], _line} -> [name]
       {:list, [{:symbol, "defn"}, {:symbol, name} | _]} -> [name]
       _ -> []
     end)
@@ -59,6 +94,7 @@ defmodule CljCompiler.Translator do
   defp extract_attr_names(forms) do
     forms
     |> Enum.flat_map(fn
+      {:list, [{:symbol, "def"}, {:symbol, name}, _], _line} -> [name]
       {:list, [{:symbol, "def"}, {:symbol, name}, _]} -> [name]
       _ -> []
     end)

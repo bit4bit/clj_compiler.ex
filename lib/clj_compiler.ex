@@ -82,6 +82,16 @@ defmodule CljCompiler do
     end
   end
 
+  defp extract_ns_form([{:list, ns_elements, _line} | rest]) do
+    case ns_elements do
+      [{:symbol, "ns"}, {:symbol, ns} | clauses] ->
+        use_clauses = extract_use_clauses(clauses)
+        {{ns, use_clauses}, rest}
+      _ ->
+        extract_ns_form(rest)
+    end
+  end
+
   defp extract_ns_form([{:list, ns_elements} | rest]) do
     case ns_elements do
       [{:symbol, "ns"}, {:symbol, ns} | clauses] ->

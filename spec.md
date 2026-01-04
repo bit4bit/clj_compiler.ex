@@ -420,9 +420,13 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Generated functions now show .clj file in compilation messages
 - Fixed clause ordering warning by grouping translate_form functions
 - Added test verifying location metadata includes .clj file path in AST
-- CompileError now includes file and line information for unknown symbols
+- CompileError now includes file and actual line number from source for unknown symbols
+- Reader now attaches line metadata to list forms: `{:list, elements, line}`
+- Translator extracts and uses actual line numbers from forms
+- Updated pattern matching to handle both old and new list formats
 - Added test assertions verifying error.file and error.line in CompileError
-- All 40 tests passing with location metadata support
+- Test verifies error.line == 3 for error on line 3 of source
+- All 40 tests passing with actual line number tracking
 
 
 

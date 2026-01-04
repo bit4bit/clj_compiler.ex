@@ -129,7 +129,7 @@ defmodule CljCompiler.Reader do
 
   defp parse_forms([{:paren_open, line, col} | rest], acc, file) do
     case parse_list(rest, [], file, line, col) do
-      {form, remaining} -> parse_forms(remaining, [{:list, form} | acc], file)
+      {form, remaining} -> parse_forms(remaining, [{:list, form, line} | acc], file)
     end
   end
 

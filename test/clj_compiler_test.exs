@@ -92,9 +92,9 @@ defmodule CljCompilerTest do
     """
 
     ast = CljCompiler.Reader.parse(source, "test_maps.clj")
-    assert [{:list, [{:symbol, "ns"}, {:symbol, "test.maps"}]},
-            {:list, [{:symbol, "defn"}, {:symbol, "get_user"}, {:vector, []}, {:map, _}]},
-            {:list, [{:symbol, "defn"}, {:symbol, "process_map"}, {:vector, [{:symbol, "m"}]}, {:symbol, "m"}]}] = ast
+    assert [{:list, [{:symbol, "ns"}, {:symbol, "test.maps"}], _},
+            {:list, [{:symbol, "defn"}, {:symbol, "get_user"}, {:vector, []}, {:map, _}], _},
+            {:list, [{:symbol, "defn"}, {:symbol, "process_map"}, {:vector, [{:symbol, "m"}]}, {:symbol, "m"}], _}] = ast
   end
 
   test "conj adds element to list at front" do
@@ -206,7 +206,7 @@ defmodule CljCompilerTest do
 
     assert error.description =~ "Unable to resolve symbol: defa"
     assert error.file == "test.clj"
-    assert error.line == 1
+    assert error.line == 3
   end
 
   test "def creates module attribute" do
