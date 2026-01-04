@@ -8,4 +8,8 @@ defmodule CljCompiler.Runtime do
       apply(Kernel, function, args)
     end
   end
+
+  def conj(collection, item) do
+    [item | collection]
+  end
 end

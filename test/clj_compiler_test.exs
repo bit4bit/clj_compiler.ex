@@ -97,5 +97,16 @@ defmodule CljCompilerTest do
             {:list, [{:symbol, "defn"}, {:symbol, "process_map"}, {:vector, [{:symbol, "m"}]}, {:symbol, "m"}]}] = ast
   end
 
+  test "conj adds element to list at front" do
+    assert ClojureProject.Example.Collections.add_to_list(1, [2, 3, 4]) == [1, 2, 3, 4]
+  end
+
+  test "conj adds element to vector at end" do
+    assert ClojureProject.Example.Collections.add_to_vector([1, 2, 3], 4) == [4, 1, 2, 3]
+  end
+
+  test "conj with empty list" do
+    assert ClojureProject.Example.Collections.conj_empty(5) == [5]
+  end
 
 end

@@ -198,6 +198,7 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [x] Map literals with keyword keys
 - [x] Keywords as atoms
 - [x] Boolean literals (true/false)
+- [x] conj function (prepend behavior)
 
 ### Not Yet Implemented
 - [ ] `recur` as special tail-call form
@@ -298,5 +299,13 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Add test fixtures with map usage
 - All 15 tests passing with map support
 
+**conj Function**: Collection conjunction with prepend behavior
+- Added `CljCompiler.Runtime.conj/2` function
+- Implements prepend operation `[item | collection]` for O(1) efficiency
+- Handled as special case in translator
+- Matches Clojure list behavior (not vector behavior)
+- Both lists and vectors use prepend since no runtime distinction exists
+- Added test fixtures in `collections.clj`
+- All 18 tests passing with conj support
 
 

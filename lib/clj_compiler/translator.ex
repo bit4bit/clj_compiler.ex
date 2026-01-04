@@ -125,6 +125,11 @@ defmodule CljCompiler.Translator do
       function_atom = String.to_atom(fn_name)
 
       cond do
+        fn_name == "conj" ->
+          quote do
+            CljCompiler.Runtime.conj(unquote_splicing(translated_args))
+          end
+
         fn_name in @built_in_ops ->
           quote do
             unquote(function_atom)(unquote_splicing(translated_args))
