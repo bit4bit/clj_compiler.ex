@@ -53,4 +53,22 @@ defmodule CljCompilerTest do
   test "reverse string from vendor directory" do
     assert MultiDirProject.Vendor.Utils.reverse_string("hello") == "olleh"
   end
+
+  test "reports syntax error with line and column" do
+    source = """
+    (ns test.errors)
+
+    (defn broken [x]
+      (+ x y
+    """
+
+    error = assert_raise CljCompiler.Reader.ParseError, fn ->
+      CljCompiler.Reader.parse(source)
+    end
+
+    assert error.line == 4
+    assert error.message =~ "Unclosed parenthesis"
+  end
+
+
 end

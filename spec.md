@@ -67,9 +67,11 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Handle comments (`;` line comments)
 - Match parentheses and brackets
 - Parse `(ns ...)` declarations
-- Report syntax errors with location info
+- Track line and column numbers during parsing
+- Report syntax errors with precise location info
+- Provide descriptive error messages
 
-**Current Implementation**: Supports lists, vectors, symbols, strings, numbers, nested structures, namespace declarations, and parent module function calls
+**Current Implementation**: Supports lists, vectors, symbols, strings, numbers, nested structures, namespace declarations, parent module function calls, and detailed error reporting with line/column information
 
 ---
 
@@ -185,15 +187,18 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [x] Parent module function access from Clojure code
 - [x] Built-in operator detection
 - [x] Kernel function fallback
+- [x] Multiple directories support
+- [x] Error reporting with line and column numbers
+- [x] Descriptive parse errors (unclosed parenthesis, unclosed bracket)
 
 ### Not Yet Implemented
 - [ ] `recur` as special tail-call form
 - [ ] Multiple function arities
 - [ ] Keywords
 - [ ] Maps
-- [ ] Error handling with line numbers
 - [ ] Reader macros
 - [ ] Destructuring in let
+- [ ] More comprehensive error messages for translation errors
 
 ---
 
@@ -266,5 +271,12 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Enables organizing code across multiple directories
 - All 10 tests passing with multiple directories
 
+**Improved Error Reporting**: Line and column tracking with descriptive messages
+- Reader now tracks line and column numbers during tokenization
+- Created `CljCompiler.Reader.ParseError` exception with file, line, column info
+- Detects unclosed parentheses and brackets with exact location
+- Detects missing namespace declarations
+- Error messages include file path, line number, column number, and description
+- All 11 tests passing with improved error handling
 
 

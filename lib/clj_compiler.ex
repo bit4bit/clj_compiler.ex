@@ -25,7 +25,7 @@ defmodule CljCompiler do
       Enum.flat_map(clj_files, fn file ->
         Module.put_attribute(env.module, :external_resource, file)
         content = File.read!(file)
-        compile_file(content, parent_module)
+        compile_file(content, parent_module, file)
       end)
 
     quote do
@@ -33,13 +33,13 @@ defmodule CljCompiler do
     end
   end
 
-  defp compile_file(content, parent_module) do
-    ast = CljCompiler.Reader.parse(content)
-    extract_modules(ast, parent_module)
+  defp compile_file(content, parent_module, file) do
+    ast = CljCompiler.Reader.parse(content, file)
+    extract_modules(ast, parent_module, file)
   end
 
-  defp extract_modules(forms, parent_module) do
-    {ns, functions} = extract_namespace_and_functions(forms)
+  defp extract_modules(forms, parent_module, file) do
+    {ns, functions} = extract_namespace_and_functions(forms, file)
     module_name = namespace_to_module(ns, parent_module)
     translated_functions = CljCompiler.Translator.translate(functions, parent_module)
 
@@ -53,10 +53,17 @@ defmodule CljCompiler do
     [module_ast]
   end
 
-  defp extract_namespace_and_functions(forms) do
-    {ns_form, rest} = extract_ns_form(forms)
-    ns = extract_namespace(ns_form)
-    {ns, rest}
+  defp extract_namespace_and_functions(forms, file) do
+    case extract_ns_form(forms) do
+      {ns_form, rest} ->
+        ns = extract_namespace(ns_form)
+        {ns, rest}
+      :error ->
+        raise CompileError,
+          file: file,
+          line: 1,
+          description: "Missing namespace declaration (ns ...) at the beginning of the file"
+    end
   end
 
   defp extract_ns_form([{:list, [{:symbol, "ns"}, {:symbol, ns}]} | rest]) do
@@ -65,6 +72,10 @@ defmodule CljCompiler do
 
   defp extract_ns_form([_ | rest]) do
     extract_ns_form(rest)
+  end
+
+  defp extract_ns_form([]) do
+    :error
   end
 
   defp extract_namespace(ns) when is_binary(ns), do: ns

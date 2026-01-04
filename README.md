@@ -121,6 +121,7 @@ mix test
 - Dynamic module generation from namespaces
 - **Parent module function access** - Call Elixir functions defined in the parent module from Clojure code
 - **Automatic Kernel fallback** - Any Kernel function automatically available when not in parent module
+- **Improved error reporting** - Parse errors with line numbers, column numbers, and descriptive messages
 - Function definitions with `defn` (with parameters)
 - String literals and concatenation with `str`
 - Numbers and arithmetic operations (`+`, `-`, `*`, `<`, `>`)
@@ -129,8 +130,22 @@ mix test
 - Recursive function calls
 - Elixir module interop (`Enum/count`, etc.)
 - Vectors `[]`
-- Compile-time error reporting
+- Compile-time error reporting with precise location info
 - Automatic recompilation on `.clj` file changes
+
+## Error Reporting
+
+The compiler provides detailed error messages with file paths, line numbers, and column numbers:
+
+```
+Parse error at line 4, column 3 in lib/clj/example.clj:
+Unclosed parenthesis
+```
+
+Common errors detected:
+- Unclosed parentheses or brackets
+- Missing namespace declarations
+- Invalid syntax with exact location information
 
 ## Roadmap
 
