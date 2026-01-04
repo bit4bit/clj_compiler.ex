@@ -244,11 +244,13 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Enables sharing Elixir functions with Clojure code
 - All 7 tests passing with parent function calls
 
-**Kernel Function Fallback**: Common Kernel functions automatically available
-- Added list of common Kernel functions (length, hd, tl, elem, abs, etc.)
-- Unknown functions checked against Kernel function list
-- If in Kernel list, qualified with `Kernel.function_name`
-- If not in Kernel list, qualified with parent module
-- Enables using Kernel functions without explicit Module/function syntax
-- Example: `(length lst)` calls `Kernel.length(lst)`
-- All 8 tests passing with Kernel fallback
+**Automatic Runtime Fallback**: Dynamic resolution of parent vs Kernel functions
+- Removed hardcoded list of Kernel functions
+- Created `CljCompiler.Runtime.call_with_fallback/3` helper
+- Uses `function_exported?/3` at runtime to check parent module first
+- Falls back to Kernel automatically if not in parent module
+- No need to maintain list of Kernel functions
+- All functions automatically available from Kernel
+- All 8 tests passing with automatic fallback
+
+

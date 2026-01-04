@@ -80,8 +80,9 @@ ClojureProject.My.Math.calculate(5, 10)
 Unknown function calls are resolved in this order:
 1. Built-in operators (`+`, `-`, `*`, etc.) - left unqualified
 2. Local functions defined in the same namespace - left unqualified
-3. Common Kernel functions (`length`, `hd`, `tl`, `elem`, etc.) - qualified with `Kernel`
-4. Parent module functions - qualified with parent module name
+3. Unknown functions - runtime check: parent module first, then Kernel fallback
+
+The compiler automatically tries to call functions from the parent module first. If the function doesn't exist there, it falls back to `Kernel` automatically at runtime using `function_exported?/3`.
 
 Example using Kernel function:
 
@@ -97,6 +98,8 @@ ClojureProject.My.Utils.get_size([1, 2, 3])
 # => 3
 ```
 
+The `length` function is not defined in `ClojureProject`, so it automatically falls back to `Kernel.length/1`.
+
 ## Running Tests
 
 ```sh
@@ -109,7 +112,7 @@ mix test
 - Directory scanning and multi-file compilation
 - Dynamic module generation from namespaces
 - **Parent module function access** - Call Elixir functions defined in the parent module from Clojure code
-- **Kernel function fallback** - Common Kernel functions (length, hd, tl, elem, abs, etc.) automatically available
+- **Automatic Kernel fallback** - Any Kernel function automatically available when not in parent module
 - Function definitions with `defn` (with parameters)
 - String literals and concatenation with `str`
 - Numbers and arithmetic operations (`+`, `-`, `*`, `<`, `>`)
