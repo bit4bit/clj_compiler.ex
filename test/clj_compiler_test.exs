@@ -109,4 +109,19 @@ defmodule CljCompilerTest do
     assert ClojureProject.Example.Collections.conj_empty(5) == [5]
   end
 
+  test "function receives map as argument" do
+    person = %{name: "Alice", age: 30}
+    assert ClojureProject.Example.Data.get_name(person) == "Alice"
+  end
+
+  test "function processes map and returns value" do
+    user = %{id: 42, active: true}
+    assert ClojureProject.Example.Data.get_id(user) == 42
+  end
+
+  test "function returns map passed as argument" do
+    config = %{host: "localhost", port: 8080}
+    assert ClojureProject.Example.Data.identity_map(config) == config
+  end
+
 end

@@ -199,6 +199,7 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [x] Keywords as atoms
 - [x] Boolean literals (true/false)
 - [x] conj function (prepend behavior)
+- [x] Keyword-as-function for map access
 
 ### Not Yet Implemented
 - [ ] `recur` as special tail-call form
@@ -307,5 +308,14 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Both lists and vectors use prepend since no runtime distinction exists
 - Added test fixtures in `collections.clj`
 - All 18 tests passing with conj support
+
+**Keyword-as-Function**: Map access using keywords as functions
+- Keywords in function position translate to map access
+- Syntax: `(:key map)` translates to `Map.get(map, :key)`
+- Matches Clojure idiom for map lookups
+- Added tests for passing and processing maps as function arguments
+- Functions can receive maps and extract values using keyword access
+- All 21 tests passing with keyword-as-function support
+
 
 

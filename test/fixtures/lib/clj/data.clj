@@ -7,3 +7,9 @@
 (defn nested_map [] {:user {:name "Bob" :email "bob@example.com"} :active true})
 
 (defn empty_map [] {})
+
+(defn get_name [person] (:name person))
+
+(defn get_id [user] (:id user))
+
+(defn identity_map [m] m)

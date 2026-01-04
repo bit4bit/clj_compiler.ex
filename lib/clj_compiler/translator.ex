@@ -110,6 +110,18 @@ defmodule CljCompiler.Translator do
     end
   end
 
+  defp translate_expr({:list, [{:keyword, keyword} | args]}, parent_module, function_names) do
+    case args do
+      [map_expr] ->
+        map_ast = translate_expr(map_expr, parent_module, function_names)
+        quote do
+          Map.get(unquote(map_ast), unquote(keyword))
+        end
+      _ ->
+        nil
+    end
+  end
+
   defp translate_expr({:list, [{:symbol, fn_name} | args]}, parent_module, function_names) do
     translated_args = Enum.map(args, &translate_expr(&1, parent_module, function_names))
 
