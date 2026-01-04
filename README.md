@@ -107,6 +107,30 @@ ClojureProject.My.Utils.get_size([1, 2, 3])
 
 The `length` function is not defined in `ClojureProject`, so it automatically falls back to `Kernel.length/1`.
 
+### Maps and Keywords
+
+Maps use Clojure-style syntax with keyword keys:
+
+```clojure
+(ns my.data)
+
+(defn create_person [name age]
+  {:name name :age age})
+
+(defn get_config []
+  {:host "localhost" :port 8080 :debug true})
+```
+
+```elixir
+ClojureProject.My.Data.create_person("Alice", 30)
+# => %{name: "Alice", age: 30}
+
+ClojureProject.My.Data.get_config()
+# => %{host: "localhost", port: 8080, debug: true}
+```
+
+Keywords are automatically converted to Elixir atoms, and maps compile to native Elixir map syntax.
+
 ## Running Tests
 
 ```sh
@@ -130,6 +154,9 @@ mix test
 - Recursive function calls
 - Elixir module interop (`Enum/count`, etc.)
 - Vectors `[]`
+- **Map literals** - `{:key value}` syntax with keyword keys
+- **Keywords** - `:keyword` becomes atom in Elixir
+- **Boolean literals** - `true` and `false`
 - Compile-time error reporting with precise location info
 - Automatic recompilation on `.clj` file changes
 
@@ -151,10 +178,9 @@ Common errors detected:
 
 - True `recur` tail-call optimization
 - Multiple function arities
-- Keywords (`:keyword`)
-- Map literals `{}`
+- Map access functions (get, assoc, dissoc)
+- Map destructuring
 - Destructuring in `let`
-- Error messages with line numbers
 - More operators and built-in functions
 
 ## Architecture

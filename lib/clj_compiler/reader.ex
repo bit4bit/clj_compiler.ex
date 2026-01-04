@@ -81,6 +81,16 @@ defmodule CljCompiler.Reader do
     tokenize_impl(rest, [{:bracket_close, line, col} | acc], "", false, line, col + 1, line, col)
   end
 
+  defp tokenize_impl("{" <> rest, acc, current, false, line, col, _tl, _tc) do
+    acc = if current != "", do: [current | acc], else: acc
+    tokenize_impl(rest, [{:brace_open, line, col} | acc], "", false, line, col + 1, line, col)
+  end
+
+  defp tokenize_impl("}" <> rest, acc, current, false, line, col, _tl, _tc) do
+    acc = if current != "", do: [current | acc], else: acc
+    tokenize_impl(rest, [{:brace_close, line, col} | acc], "", false, line, col + 1, line, col)
+  end
+
   defp tokenize_impl(<<char::utf8, rest::binary>>, acc, current, false, line, col, _tl, _tc) when char in [?\s, ?\n, ?\t, ?\r] do
     acc = if current != "", do: [current | acc], else: acc
     new_line = if char == ?\n, do: line + 1, else: line
@@ -111,6 +121,8 @@ defmodule CljCompiler.Reader do
   defp get_token_position({:paren_close, line, col}), do: {line, col}
   defp get_token_position({:bracket_open, line, col}), do: {line, col}
   defp get_token_position({:bracket_close, line, col}), do: {line, col}
+  defp get_token_position({:brace_open, line, col}), do: {line, col}
+  defp get_token_position({:brace_close, line, col}), do: {line, col}
   defp get_token_position(_), do: {0, 0}
 
   defp parse_forms([], acc, _file), do: {Enum.reverse(acc), []}
@@ -141,6 +153,11 @@ defmodule CljCompiler.Reader do
     parse_list(remaining, [{:vector, vector} | acc], file, line, col)
   end
 
+  defp parse_list([{:brace_open, line, col} | rest], acc, file, _ol, _oc) do
+    {map, remaining} = parse_map(rest, [], file, line, col)
+    parse_list(remaining, [{:map, map} | acc], file, line, col)
+  end
+
   defp parse_list([token | rest], acc, file, open_line, open_col) do
     parse_list(rest, [parse_atom(token) | acc], file, open_line, open_col)
   end
@@ -161,13 +178,47 @@ defmodule CljCompiler.Reader do
     parse_vector(remaining, [{:vector, nested_vector} | acc], file, line, col)
   end
 
+  defp parse_vector([{:brace_open, line, col} | rest], acc, file, _ol, _oc) do
+    {map, remaining} = parse_map(rest, [], file, line, col)
+    parse_vector(remaining, [{:map, map} | acc], file, line, col)
+  end
+
   defp parse_vector([token | rest], acc, file, open_line, open_col) do
     parse_vector(rest, [parse_atom(token) | acc], file, open_line, open_col)
+  end
+
+  defp parse_map([{:brace_close, _line, _col} | rest], acc, _file, _open_line, _open_col), do: {Enum.reverse(acc), rest}
+
+  defp parse_map([], _acc, file, open_line, open_col) do
+    raise ParseError, reason: "Unclosed brace", line: open_line, column: open_col, file: file
+  end
+
+  defp parse_map([{:paren_open, line, col} | rest], acc, file, _ol, _oc) do
+    {nested, remaining} = parse_list(rest, [], file, line, col)
+    parse_map(remaining, [{:list, nested} | acc], file, line, col)
+  end
+
+  defp parse_map([{:bracket_open, line, col} | rest], acc, file, _ol, _oc) do
+    {vector, remaining} = parse_vector(rest, [], file, line, col)
+    parse_map(remaining, [{:vector, vector} | acc], file, line, col)
+  end
+
+  defp parse_map([{:brace_open, line, col} | rest], acc, file, _ol, _oc) do
+    {nested_map, remaining} = parse_map(rest, [], file, line, col)
+    parse_map(remaining, [{:map, nested_map} | acc], file, line, col)
+  end
+
+  defp parse_map([token | rest], acc, file, open_line, open_col) do
+    parse_map(rest, [parse_atom(token) | acc], file, open_line, open_col)
   end
 
   defp parse_atom("\"" <> _ = token) do
     value = String.slice(token, 1..-2//1)
     {:string, value}
+  end
+
+  defp parse_atom(":" <> rest = token) when is_binary(token) do
+    {:keyword, String.to_atom(rest)}
   end
 
   defp parse_atom(token) when is_binary(token) do

@@ -44,7 +44,27 @@ defmodule CljCompiler.Translator do
 
   defp translate_expr({:string, value}, _parent_module, _function_names), do: value
   defp translate_expr({:number, value}, _parent_module, _function_names), do: value
+  defp translate_expr({:keyword, atom}, _parent_module, _function_names), do: atom
+  defp translate_expr({:symbol, "true"}, _parent_module, _function_names), do: true
+  defp translate_expr({:symbol, "false"}, _parent_module, _function_names), do: false
   defp translate_expr({:symbol, name}, _parent_module, _function_names), do: {String.to_atom(name), [], nil}
+
+  defp translate_expr({:map, elements}, parent_module, function_names) do
+    pairs = Enum.chunk_every(elements, 2)
+
+    map_pairs = Enum.map(pairs, fn [key, value] ->
+      key_ast = translate_expr(key, parent_module, function_names)
+      value_ast = translate_expr(value, parent_module, function_names)
+      {key_ast, value_ast}
+    end)
+
+    {:%{}, [], map_pairs}
+  end
+
+  defp translate_expr({:vector, elements}, parent_module, function_names) do
+    translated = Enum.map(elements, &translate_expr(&1, parent_module, function_names))
+    translated
+  end
 
   defp translate_expr({:list, [{:symbol, "str"} | args]}, parent_module, function_names) do
     translated_args = Enum.map(args, &translate_expr(&1, parent_module, function_names))

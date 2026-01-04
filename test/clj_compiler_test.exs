@@ -70,5 +70,32 @@ defmodule CljCompilerTest do
     assert error.message =~ "Unclosed parenthesis"
   end
 
+  test "creates map with keyword keys" do
+    assert ClojureProject.Example.Data.create_person("Alice", 30) == %{name: "Alice", age: 30}
+  end
+
+  test "returns map literal" do
+    assert ClojureProject.Example.Data.get_config() == %{host: "localhost", port: 8080, debug: true}
+  end
+
+  test "returns empty map" do
+    assert ClojureProject.Example.Data.empty_map() == %{}
+  end
+
+  test "parses map literals" do
+    source = """
+    (ns test.maps)
+
+    (defn get_user [] {:name "Alice" :age 30})
+
+    (defn process_map [m] m)
+    """
+
+    ast = CljCompiler.Reader.parse(source, "test_maps.clj")
+    assert [{:list, [{:symbol, "ns"}, {:symbol, "test.maps"}]},
+            {:list, [{:symbol, "defn"}, {:symbol, "get_user"}, {:vector, []}, {:map, _}]},
+            {:list, [{:symbol, "defn"}, {:symbol, "process_map"}, {:vector, [{:symbol, "m"}]}, {:symbol, "m"}]}] = ast
+  end
+
 
 end

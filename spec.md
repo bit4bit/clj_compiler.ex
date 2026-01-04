@@ -64,14 +64,16 @@ With `(ns example.core)` creates `MyApp.Example.Core`
   - `{:string, value}`
   - `{:number, value}`
   - `{:keyword, atom}`
+  - `{:map, [...]}`
 - Handle comments (`;` line comments)
 - Match parentheses and brackets
 - Parse `(ns ...)` declarations
 - Track line and column numbers during parsing
 - Report syntax errors with precise location info
 - Provide descriptive error messages
+- Parse map literals `{:key value}`
 
-**Current Implementation**: Supports lists, vectors, symbols, strings, numbers, nested structures, namespace declarations, parent module function calls, and detailed error reporting with line/column information
+**Current Implementation**: Supports lists, vectors, maps, symbols, strings, numbers, keywords, booleans, nested structures, namespace declarations, parent module function calls, and detailed error reporting with line/column information
 
 ---
 
@@ -87,10 +89,13 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Handle parent module function calls (qualify unknown functions)
 - Distinguish built-in operators from function calls
 - Fallback to Kernel functions when not in parent module
+- Translate map literals to Elixir map syntax
+- Translate keywords to atoms
+- Translate boolean literals (true/false)
 - Validate tail position for `recur`
 - Generate idiomatic Elixir code
 
-**Current Implementation**: Handles `defn` with parameters, `let` bindings, `if` conditionals, arithmetic operations, function calls, string concatenation, Elixir interop, parent module function calls, and Kernel function fallback
+**Current Implementation**: Handles `defn` with parameters, `let` bindings, `if` conditionals, arithmetic operations, function calls, string concatenation, maps, keywords, booleans, Elixir interop, parent module function calls, and Kernel function fallback
 
 ---
 
@@ -190,15 +195,18 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [x] Multiple directories support
 - [x] Error reporting with line and column numbers
 - [x] Descriptive parse errors (unclosed parenthesis, unclosed bracket)
+- [x] Map literals with keyword keys
+- [x] Keywords as atoms
+- [x] Boolean literals (true/false)
 
 ### Not Yet Implemented
 - [ ] `recur` as special tail-call form
 - [ ] Multiple function arities
-- [ ] Keywords
-- [ ] Maps
 - [ ] Reader macros
 - [ ] Destructuring in let
 - [ ] More comprehensive error messages for translation errors
+- [ ] Map access functions (get, assoc, dissoc)
+- [ ] Map destructuring
 
 ---
 
@@ -278,5 +286,17 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Detects missing namespace declarations
 - Error messages include file path, line number, column number, and description
 - All 11 tests passing with improved error handling
+
+**Map Literals Support**: Full map syntax with keywords and booleans
+- Added tokenization for braces `{` and `}`
+- Created `parse_map` function to handle map literals
+- Translate map literals to Elixir `%{key: value}` syntax
+- Keywords parsed as atoms (`:name` → `name`)
+- Boolean literals (true/false) translated correctly
+- Support for nested maps, vectors, and lists inside maps
+- Detect unclosed braces with line/column information
+- Add test fixtures with map usage
+- All 15 tests passing with map support
+
 
 
