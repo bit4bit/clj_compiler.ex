@@ -37,3 +37,13 @@ defmodule CljCompilerTest.TestUseModuleB do
     end
   end
 end
+
+defmodule CljCompilerTest.TestUseModuleWithAtom do
+  defmacro __using__(opt) when is_atom(opt) do
+    quote do
+      def atom_option do
+        unquote(opt)
+      end
+    end
+  end
+end

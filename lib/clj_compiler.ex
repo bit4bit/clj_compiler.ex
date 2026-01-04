@@ -113,6 +113,10 @@ defmodule CljCompiler do
     {module_name, []}
   end
 
+  defp parse_use_module({:vector, [{:symbol, module_name}, {:keyword, atom_opt}]}) do
+    {module_name, atom_opt}
+  end
+
   defp parse_use_module({:vector, [{:symbol, module_name}, {:map, opts}]}) do
     parsed_opts = parse_use_options(opts)
     {module_name, parsed_opts}

@@ -188,4 +188,9 @@ defmodule CljCompilerTest do
     assert CljCompilerTest.UseTestProject.UseExample.Multiple.has_multiple() == true
   end
 
+  test "namespace with :use with atom option" do
+    assert function_exported?(CljCompilerTest.UseTestProject.UseExample.WithAtom, :atom_option, 0)
+    assert CljCompilerTest.UseTestProject.UseExample.WithAtom.atom_option() == :controller
+  end
+
 end

@@ -203,7 +203,7 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [x] get function for map access
 - [x] assoc function for map updates
 - [x] dissoc function for map key removal (vector syntax)
-- [x] :use namespace declaration for Elixir module injection
+- [x] :use namespace declaration for Elixir module injection (with atom and keyword list options)
 
 ### Not Yet Implemented
 - [ ] `recur` as special tail-call form
@@ -371,6 +371,13 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Fixed namespace parsing to handle clauses in ns form
 - Created test support modules with __using__ macros
 - All 32 tests passing with :use namespace support
+
+**Atom Option Support for :use**: Support atom as second argument
+- Added support for atom options in :use declarations
+- Syntax: `(:use [PhoenixWeb :controller])` translates to `use PhoenixWeb, :controller`
+- Added parse_use_module clause for vector with keyword option
+- Created test for atom option usage
+- All 33 tests passing with atom option support
 
 
 
