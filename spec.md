@@ -389,7 +389,12 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Enables Phoenix controller functions like render/2 to work correctly
 - All 33 tests passing with improved function resolution
 
-
-
+**Unknown Symbol Validation**: Compile-time error for unresolved top-level symbols
+- Added validation for unknown symbols in top-level forms
+- Only `ns` and `defn` allowed at top level
+- Unknown symbols like `defa` raise `CompileError` with message "Unable to resolve symbol: defa in this context"
+- Added explicit `translate_form` clause for `ns` forms
+- Added catch-all clause raising error for unknown top-level symbols
+- All 34 tests passing with symbol validation
 
 

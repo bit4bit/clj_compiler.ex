@@ -193,4 +193,18 @@ defmodule CljCompilerTest do
     assert CljCompilerTest.UseTestProject.UseExample.WithAtom.atom_option() == :controller
   end
 
+  test "throws error for unknown top-level symbol" do
+    source = """
+    (ns test.unknown)
+
+    (defa mo [] (+ 3 1))
+    """
+
+    error = assert_raise CompileError, fn ->
+      CljCompiler.Translator.translate(CljCompiler.Reader.parse(source, "test.clj"), TestModule)
+    end
+
+    assert error.description =~ "Unable to resolve symbol: defa"
+  end
+
 end

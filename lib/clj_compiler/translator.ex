@@ -10,6 +10,10 @@ defmodule CljCompiler.Translator do
     |> List.flatten()
   end
 
+  defp translate_form({:list, [{:symbol, "ns"} | _]}, _parent_module, _function_names) do
+    []
+  end
+
   defp extract_function_names(forms) do
     forms
     |> Enum.flat_map(fn
@@ -29,6 +33,11 @@ defmodule CljCompiler.Translator do
         unquote(body_ast)
       end
     end
+  end
+
+  defp translate_form({:list, [{:symbol, unknown_symbol} | _]}, _parent_module, _function_names) do
+    raise CompileError,
+      description: "Unable to resolve symbol: #{unknown_symbol} in this context"
   end
 
   defp translate_form(_, _, _), do: []
