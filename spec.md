@@ -379,6 +379,16 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Created test for atom option usage
 - All 33 tests passing with atom option support
 
+**Function Resolution for Imports**: Allow use-imported functions to work
+- Changed unknown function calls from call_with_fallback to direct calls
+- Unknown functions now called unqualified: `render(args)` not `call_with_fallback(...)`
+- Elixir's normal resolution finds imports from use statements first
+- Parent module functions must be explicitly qualified: `ParentModule/function`
+- Updated test fixtures to qualify parent module calls
+- Removed dependency on call_with_fallback for unknown functions
+- Enables Phoenix controller functions like render/2 to work correctly
+- All 33 tests passing with improved function resolution
+
 
 
 

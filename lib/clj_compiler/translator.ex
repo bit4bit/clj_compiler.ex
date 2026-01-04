@@ -153,11 +153,7 @@ defmodule CljCompiler.Translator do
 
         true ->
           quote do
-            CljCompiler.Runtime.call_with_fallback(
-              unquote(parent_module),
-              unquote(function_atom),
-              [unquote_splicing(translated_args)]
-            )
+            unquote(function_atom)(unquote_splicing(translated_args))
           end
       end
     end
