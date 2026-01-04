@@ -13,7 +13,7 @@
 ## Architecture Overview
 
 ```
-.clj file → CljCompiler.use/1 → Reader → Translator → Elixir AST → Module Functions
+Directory of .clj files → CljCompiler.use/1 → Reader → Namespace Extraction → Translator → Elixir AST → Nested Modules
 ```
 
 ---
@@ -25,14 +25,23 @@
 
 **Responsibilities**:
 - Define `__using__/1` macro accepting `dir` option
+- Capture parent module name from calling context
 - Scan directory for all `.clj` files
 - Register each file as `@external_resource` for recompilation
 - Extract `(ns ...)` declaration from each file
-- Convert namespace to Elixir module name
-- Generate `defmodule` for each namespace
+- Convert namespace to Elixir module name prefixed with parent module
+- Generate `defmodule` for each namespace nested under parent
 - Delegate to Reader for parsing
 - Delegate to Translator for AST generation
 - Inject generated modules into compilation
+
+**Example**:
+```elixir
+defmodule MyApp do
+  use CljCompiler, dir: "src"
+end
+```
+With `(ns example.core)` creates `MyApp.Example.Core`
 
 **Current Implementation**: Full namespace-based compilation - scans directory, extracts namespaces, creates modules dynamically
 
@@ -214,3 +223,9 @@
 - Modules now generated dynamically from namespace declarations
 - Single `use CljCompiler, dir: "path"` compiles all files in directory
 - All 5 tests passing with new architecture
+
+**Parent Module Nesting**: Namespace modules nested under calling module
+- Generated modules prefixed with parent module name
+- `ClojureProject` with `(ns example.math)` creates `ClojureProject.Example.Math`
+- Allows multiple projects with same namespaces without conflicts
+- All 5 tests passing with nested module structure

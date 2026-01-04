@@ -16,10 +16,12 @@ mix deps.get
 Create a module that uses `CljCompiler` with a directory:
 
 ```elixir
-defmodule MyApp do
+defmodule ClojureProject do
   use CljCompiler, dir: "lib/clj"
 end
 ```
+
+All generated modules will be nested under `ClojureProject`.
 
 Create `.clj` files in the specified directory with namespace declarations:
 
@@ -33,19 +35,23 @@ Create `.clj` files in the specified directory with namespace declarations:
 
 The compiler will:
 1. Scan all `.clj` files in the directory at compile time
-2. Extract namespace declarations
-3. Generate corresponding Elixir modules
-4. Inject functions into those modules
+2. Extract namespace declarations `(ns ...)`
+3. Convert namespaces to module names (e.g., `my.app.core` → `My.App.Core`)
+4. Nest generated modules under the parent module
+5. Generate `defmodule` for each namespace
+6. Inject functions into those modules
 
-Call the functions using the generated module:
+Call the functions using the nested module path:
 
 ```elixir
-My.App.Core.hello()
+ClojureProject.My.App.Core.hello()
 # => "Hello World"
 
-My.App.Core.greet("Alice")
+ClojureProject.My.App.Core.greet("Alice")
 # => "Hello, Alice"
 ```
+
+The namespace `my.app.core` becomes `ClojureProject.My.App.Core` because modules are nested under the parent.
 
 ## Running Tests
 

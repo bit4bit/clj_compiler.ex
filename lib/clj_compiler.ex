@@ -10,13 +10,14 @@ defmodule CljCompiler do
 
   defmacro __before_compile__(env) do
     dir = Module.get_attribute(env.module, :clj_dir)
+    parent_module = env.module
     clj_files = Path.wildcard("#{dir}/**/*.clj")
 
     modules =
       Enum.flat_map(clj_files, fn file ->
         Module.put_attribute(env.module, :external_resource, file)
         content = File.read!(file)
-        compile_file(content)
+        compile_file(content, parent_module)
       end)
 
     quote do
@@ -24,14 +25,14 @@ defmodule CljCompiler do
     end
   end
 
-  defp compile_file(content) do
+  defp compile_file(content, parent_module) do
     ast = CljCompiler.Reader.parse(content)
-    extract_modules(ast)
+    extract_modules(ast, parent_module)
   end
 
-  defp extract_modules(forms) do
+  defp extract_modules(forms, parent_module) do
     {ns, functions} = extract_namespace_and_functions(forms)
-    module_name = namespace_to_module(ns)
+    module_name = namespace_to_module(ns, parent_module)
 
     module_ast =
       quote do
@@ -59,7 +60,7 @@ defmodule CljCompiler do
 
   defp extract_namespace(ns) when is_binary(ns), do: ns
 
-  defp namespace_to_module(ns) do
+  defp namespace_to_module(ns, parent_module) do
     parts =
       ns
       |> String.split(".")
@@ -70,6 +71,6 @@ defmodule CljCompiler do
         |> Enum.join("")
       end)
 
-    Module.concat(parts)
+    Module.concat([parent_module | parts])
   end
 end
