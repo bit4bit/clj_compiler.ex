@@ -207,4 +207,38 @@ defmodule CljCompilerTest do
     assert error.description =~ "Unable to resolve symbol: defa"
   end
 
+  test "def creates module attribute" do
+    source = """
+    (ns test.attrs)
+
+    (def max-size 100)
+
+    (defn get-max [] max-size)
+    """
+
+    ast = CljCompiler.Reader.parse(source, "test.clj")
+    result = CljCompiler.Translator.translate(ast, TestModule)
+
+    assert Enum.any?(result, fn
+      {:@, _, [{:max_size, _, [100]}]} -> true
+      _ -> false
+    end)
+  end
+
+  test "uses module attribute in function" do
+    assert ClojureProject.Example.Attrs.get_max() == 100
+  end
+
+  test "uses string module attribute" do
+    assert ClojureProject.Example.Attrs.get_name() == "unknown"
+  end
+
+  test "uses float module attribute" do
+    assert ClojureProject.Example.Attrs.get_pi() == 3.14
+  end
+
+  test "computes using module attribute" do
+    assert ClojureProject.Example.Attrs.compute_area(2) == 12.56
+  end
+
 end

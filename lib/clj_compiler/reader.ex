@@ -222,9 +222,17 @@ defmodule CljCompiler.Reader do
   end
 
   defp parse_atom(token) when is_binary(token) do
-    case Integer.parse(token) do
-      {num, ""} -> {:number, num}
-      _ -> {:symbol, token}
+    cond do
+      match?({_, ""}, Integer.parse(token)) ->
+        {num, ""} = Integer.parse(token)
+        {:number, num}
+
+      match?({_, ""}, Float.parse(token)) ->
+        {num, ""} = Float.parse(token)
+        {:number, num}
+
+      true ->
+        {:symbol, token}
     end
   end
 

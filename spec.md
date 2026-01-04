@@ -397,4 +397,17 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Added catch-all clause raising error for unknown top-level symbols
 - All 34 tests passing with symbol validation
 
+**def Form for Module Attributes**: Support compile-time constants
+- Added `def` form to define module attributes
+- Syntax: `(def max-size 100)` translates to `@max_size 100` in Elixir
+- Attribute names with hyphens converted to underscores (max-size → max_size)
+- Symbols referencing attributes in function bodies translated to module attribute access
+- Added `extract_attr_names/1` to track defined attributes
+- Pass attr_names through translation pipeline for symbol resolution
+- Function names normalized to replace hyphens with underscores
+- Added float parsing support in reader (3.14 parsed as number, not symbol)
+- Changed `parse_atom/1` to check Float.parse after Integer.parse
+- Created test fixture attrs.clj with numeric, string, and float attributes
+- All 39 tests passing with def and float support
+
 

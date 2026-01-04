@@ -4,14 +4,22 @@ defmodule CljCompiler.Translator do
 
   def translate(forms, parent_module) do
     function_names = extract_function_names(forms)
+    attr_names = extract_attr_names(forms)
 
     forms
-    |> Enum.map(&translate_form(&1, parent_module, function_names))
+    |> Enum.map(&translate_form(&1, parent_module, function_names, attr_names))
     |> List.flatten()
   end
 
-  defp translate_form({:list, [{:symbol, "ns"} | _]}, _parent_module, _function_names) do
+  defp translate_form({:list, [{:symbol, "ns"} | _]}, _parent_module, _function_names, _attr_names) do
     []
+  end
+
+  defp translate_form({:list, [{:symbol, "def"}, {:symbol, name}, value]}, parent_module, function_names, attr_names) do
+    attr_name = name |> String.replace("-", "_") |> String.to_atom()
+    value_ast = translate_expr(value, parent_module, function_names, attr_names)
+
+    {:@, [], [{attr_name, [], [value_ast]}]}
   end
 
   defp extract_function_names(forms) do
@@ -23,10 +31,19 @@ defmodule CljCompiler.Translator do
     |> MapSet.new()
   end
 
-  defp translate_form({:list, [{:symbol, "defn"}, {:symbol, name}, {:vector, params} | body]}, parent_module, function_names) do
-    function_name = String.to_atom(name)
+  defp extract_attr_names(forms) do
+    forms
+    |> Enum.flat_map(fn
+      {:list, [{:symbol, "def"}, {:symbol, name}, _]} -> [name]
+      _ -> []
+    end)
+    |> MapSet.new()
+  end
+
+  defp translate_form({:list, [{:symbol, "defn"}, {:symbol, name}, {:vector, params} | body]}, parent_module, function_names, attr_names) do
+    function_name = name |> String.replace("-", "_") |> String.to_atom()
     param_vars = Enum.map(params, fn {:symbol, p} -> {String.to_atom(p), [], nil} end)
-    body_ast = translate_body(body, parent_module, function_names)
+    body_ast = translate_body(body, parent_module, function_names, attr_names)
 
     quote do
       def unquote(function_name)(unquote_splicing(param_vars)) do
@@ -35,59 +52,67 @@ defmodule CljCompiler.Translator do
     end
   end
 
-  defp translate_form({:list, [{:symbol, unknown_symbol} | _]}, _parent_module, _function_names) do
+  defp translate_form({:list, [{:symbol, unknown_symbol} | _]}, _parent_module, _function_names, _attr_names) do
     raise CompileError,
       description: "Unable to resolve symbol: #{unknown_symbol} in this context"
   end
 
-  defp translate_form(_, _, _), do: []
+  defp translate_form(_, _, _, _), do: []
 
-  defp translate_body([{:string, value}], _parent_module, _function_names) do
+  defp translate_body([{:string, value}], _parent_module, _function_names, _attr_names) do
     value
   end
 
-  defp translate_body([form], parent_module, function_names) do
-    translate_expr(form, parent_module, function_names)
+  defp translate_body([form], parent_module, function_names, attr_names) do
+    translate_expr(form, parent_module, function_names, attr_names)
   end
 
-  defp translate_body([], _parent_module, _function_names), do: nil
+  defp translate_body([], _parent_module, _function_names, _attr_names), do: nil
 
-  defp translate_expr({:string, value}, _parent_module, _function_names), do: value
-  defp translate_expr({:number, value}, _parent_module, _function_names), do: value
-  defp translate_expr({:keyword, atom}, _parent_module, _function_names), do: atom
-  defp translate_expr({:symbol, "true"}, _parent_module, _function_names), do: true
-  defp translate_expr({:symbol, "false"}, _parent_module, _function_names), do: false
-  defp translate_expr({:symbol, name}, _parent_module, _function_names), do: {String.to_atom(name), [], nil}
+  defp translate_expr({:string, value}, _parent_module, _function_names, _attr_names), do: value
+  defp translate_expr({:number, value}, _parent_module, _function_names, _attr_names), do: value
+  defp translate_expr({:keyword, atom}, _parent_module, _function_names, _attr_names), do: atom
+  defp translate_expr({:symbol, "true"}, _parent_module, _function_names, _attr_names), do: true
+  defp translate_expr({:symbol, "false"}, _parent_module, _function_names, _attr_names), do: false
 
-  defp translate_expr({:map, elements}, parent_module, function_names) do
+  defp translate_expr({:symbol, name}, _parent_module, _function_names, attr_names) do
+    normalized_name = String.replace(name, "-", "_")
+    if MapSet.member?(attr_names, name) do
+      {:@, [], [{String.to_atom(normalized_name), [], nil}]}
+    else
+      {String.to_atom(name), [], nil}
+    end
+  end
+
+  defp translate_expr({:map, elements}, parent_module, function_names, attr_names) do
     pairs = Enum.chunk_every(elements, 2)
 
     map_pairs = Enum.map(pairs, fn [key, value] ->
-      key_ast = translate_expr(key, parent_module, function_names)
-      value_ast = translate_expr(value, parent_module, function_names)
+      key_ast = translate_expr(key, parent_module, function_names, attr_names)
+      value_ast = translate_expr(value, parent_module, function_names, attr_names)
       {key_ast, value_ast}
     end)
 
     {:%{}, [], map_pairs}
   end
 
-  defp translate_expr({:vector, elements}, parent_module, function_names) do
-    translated = Enum.map(elements, &translate_expr(&1, parent_module, function_names))
+  defp translate_expr({:vector, elements}, parent_module, function_names, attr_names) do
+    translated = Enum.map(elements, &translate_expr(&1, parent_module, function_names, attr_names))
     translated
   end
 
-  defp translate_expr({:list, [{:symbol, "str"} | args]}, parent_module, function_names) do
-    translated_args = Enum.map(args, &translate_expr(&1, parent_module, function_names))
+  defp translate_expr({:list, [{:symbol, "str"} | args]}, parent_module, function_names, attr_names) do
+    translated_args = Enum.map(args, &translate_expr(&1, parent_module, function_names, attr_names))
 
     quote do
       Enum.join([unquote_splicing(translated_args)], "")
     end
   end
 
-  defp translate_expr({:list, [{:symbol, "if"}, condition, then_expr, else_expr]}, parent_module, function_names) do
-    cond_ast = translate_expr(condition, parent_module, function_names)
-    then_ast = translate_expr(then_expr, parent_module, function_names)
-    else_ast = translate_expr(else_expr, parent_module, function_names)
+  defp translate_expr({:list, [{:symbol, "if"}, condition, then_expr, else_expr]}, parent_module, function_names, attr_names) do
+    cond_ast = translate_expr(condition, parent_module, function_names, attr_names)
+    then_ast = translate_expr(then_expr, parent_module, function_names, attr_names)
+    else_ast = translate_expr(else_expr, parent_module, function_names, attr_names)
 
     quote do
       if unquote(cond_ast) do
@@ -98,19 +123,19 @@ defmodule CljCompiler.Translator do
     end
   end
 
-  defp translate_expr({:list, [{:symbol, "let"}, {:vector, bindings}, body]}, parent_module, function_names) do
+  defp translate_expr({:list, [{:symbol, "let"}, {:vector, bindings}, body]}, parent_module, function_names, attr_names) do
     binding_pairs = Enum.chunk_every(bindings, 2)
 
     binding_asts = Enum.map(binding_pairs, fn [{:symbol, var_name}, value_expr] ->
       var_ast = {String.to_atom(var_name), [], nil}
-      value_ast = translate_expr(value_expr, parent_module, function_names)
+      value_ast = translate_expr(value_expr, parent_module, function_names, attr_names)
 
       quote do
         unquote(var_ast) = unquote(value_ast)
       end
     end)
 
-    body_ast = translate_expr(body, parent_module, function_names)
+    body_ast = translate_expr(body, parent_module, function_names, attr_names)
 
     quote do
       (fn ->
@@ -120,10 +145,10 @@ defmodule CljCompiler.Translator do
     end
   end
 
-  defp translate_expr({:list, [{:keyword, keyword} | args]}, parent_module, function_names) do
+  defp translate_expr({:list, [{:keyword, keyword} | args]}, parent_module, function_names, attr_names) do
     case args do
       [map_expr] ->
-        map_ast = translate_expr(map_expr, parent_module, function_names)
+        map_ast = translate_expr(map_expr, parent_module, function_names, attr_names)
         quote do
           Map.get(unquote(map_ast), unquote(keyword))
         end
@@ -132,8 +157,8 @@ defmodule CljCompiler.Translator do
     end
   end
 
-  defp translate_expr({:list, [{:symbol, fn_name} | args]}, parent_module, function_names) do
-    translated_args = Enum.map(args, &translate_expr(&1, parent_module, function_names))
+  defp translate_expr({:list, [{:symbol, fn_name} | args]}, parent_module, function_names, attr_names) do
+    translated_args = Enum.map(args, &translate_expr(&1, parent_module, function_names, attr_names))
 
     if String.contains?(fn_name, "/") do
       [module_name, function_name] = String.split(fn_name, "/")
@@ -168,7 +193,7 @@ defmodule CljCompiler.Translator do
     end
   end
 
-  defp translate_expr(_, _parent_module, _function_names), do: nil
+  defp translate_expr(_, _parent_module, _function_names, _attr_names), do: nil
 
   defp translate_runtime_call(fn_name, translated_args) do
     function_atom = String.to_atom(fn_name)
