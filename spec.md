@@ -24,9 +24,9 @@ Directory of .clj files → CljCompiler.use/1 → Reader → Namespace Extractio
 **Role**: Main entry point providing the `use` macro
 
 **Responsibilities**:
-- Define `__using__/1` macro accepting `dir` option
+- Define `__using__/1` macro accepting `dir` option (string or list of strings)
 - Capture parent module name from calling context
-- Scan directory for all `.clj` files
+- Scan directory(ies) for all `.clj` files
 - Register each file as `@external_resource` for recompilation
 - Extract `(ns ...)` declaration from each file
 - Convert namespace to Elixir module name prefixed with parent module
@@ -39,6 +39,11 @@ Directory of .clj files → CljCompiler.use/1 → Reader → Namespace Extractio
 ```elixir
 defmodule MyApp do
   use CljCompiler, dir: "src"
+end
+
+# Or multiple directories
+defmodule MyApp do
+  use CljCompiler, dir: ["src", "lib/clj", "vendor/clj"]
 end
 ```
 With `(ns example.core)` creates `MyApp.Example.Core`
@@ -158,7 +163,7 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 
 ### Implemented
 - [x] Project structure
-- [x] `use CljCompiler, dir: "path"` macro
+- [x] `use CljCompiler, dir: "path"` macro (supports single or multiple directories)
 - [x] Directory scanning for `.clj` files
 - [x] Namespace declaration parsing `(ns ...)`
 - [x] Namespace to module name conversion
@@ -252,5 +257,14 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - No need to maintain list of Kernel functions
 - All functions automatically available from Kernel
 - All 8 tests passing with automatic fallback
+
+**Multiple Directories Support**: Compile from multiple source directories
+- `dir` option accepts string or list of strings
+- Example: `dir: ["src", "lib/clj", "vendor/clj"]`
+- All directories scanned for `.clj` files
+- Files from all directories compiled into same parent module
+- Enables organizing code across multiple directories
+- All 10 tests passing with multiple directories
+
 
 

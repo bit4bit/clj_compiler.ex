@@ -13,11 +13,18 @@ mix deps.get
 
 ## Usage
 
-Create a module that uses `CljCompiler` with a directory:
+Create a module that uses `CljCompiler` with a directory (or multiple directories):
 
 ```elixir
 defmodule ClojureProject do
   use CljCompiler, dir: "lib/clj"
+end
+```
+
+```elixir
+# Or with multiple directories
+defmodule ClojureProject do
+  use CljCompiler, dir: ["src", "lib/clj", "vendor/clj"]
 end
 ```
 
@@ -34,7 +41,7 @@ Create `.clj` files in the specified directory with namespace declarations:
 ```
 
 The compiler will:
-1. Scan all `.clj` files in the directory at compile time
+1. Scan all `.clj` files in the directory (or directories) at compile time
 2. Extract namespace declarations `(ns ...)`
 3. Convert namespaces to module names (e.g., `my.app.core` → `My.App.Core`)
 4. Nest generated modules under the parent module
@@ -109,6 +116,7 @@ mix test
 ## Current Features
 
 - Namespace declarations `(ns ...)`
+- **Multiple directories support** - Specify single directory or list of directories
 - Directory scanning and multi-file compilation
 - Dynamic module generation from namespaces
 - **Parent module function access** - Call Elixir functions defined in the parent module from Clojure code

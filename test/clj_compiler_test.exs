@@ -40,4 +40,17 @@ defmodule CljCompilerTest do
   test "calls Kernel function when not in parent module" do
     assert ClojureProject.Example.Math.get_list_length([1, 2, 3, 4, 5]) == 5
   end
+
+  defmodule MultiDirProject do
+    use CljCompiler, dir: ["test/fixtures/lib/clj", "test/fixtures/vendor/clj"]
+  end
+
+  test "compiles from multiple directories" do
+    assert MultiDirProject.Example.Core.hello() == "Hello World"
+    assert MultiDirProject.Vendor.Utils.double(5) == 10
+  end
+
+  test "reverse string from vendor directory" do
+    assert MultiDirProject.Vendor.Utils.reverse_string("hello") == "olleh"
+  end
 end

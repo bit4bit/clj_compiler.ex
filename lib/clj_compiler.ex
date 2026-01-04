@@ -1,17 +1,25 @@
 defmodule CljCompiler do
   defmacro __using__(opts) do
-    dir = Keyword.fetch!(opts, :dir)
+    dirs =
+      case Keyword.fetch!(opts, :dir) do
+        dir when is_binary(dir) -> [dir]
+        dirs when is_list(dirs) -> dirs
+      end
 
     quote do
-      @clj_dir unquote(dir)
+      @clj_dirs unquote(dirs)
       @before_compile CljCompiler
     end
   end
 
   defmacro __before_compile__(env) do
-    dir = Module.get_attribute(env.module, :clj_dir)
+    dirs = Module.get_attribute(env.module, :clj_dirs)
     parent_module = env.module
-    clj_files = Path.wildcard("#{dir}/**/*.clj")
+
+    clj_files =
+      Enum.flat_map(dirs, fn dir ->
+        Path.wildcard("#{dir}/**/*.clj")
+      end)
 
     modules =
       Enum.flat_map(clj_files, fn file ->
