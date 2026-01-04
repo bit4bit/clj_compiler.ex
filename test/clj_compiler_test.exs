@@ -36,4 +36,8 @@ defmodule CljCompilerTest do
   test "calls parent module function with string from clojure" do
     assert ClojureProject.Example.Core.formal_greet("Alice") == "Hello, Mr. Alice"
   end
+
+  test "calls Kernel function when not in parent module" do
+    assert ClojureProject.Example.Math.get_list_length([1, 2, 3, 4, 5]) == 5
+  end
 end

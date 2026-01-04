@@ -79,10 +79,11 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Handle Elixir interop (`Enum/count` → `Enum.count`)
 - Handle parent module function calls (qualify unknown functions)
 - Distinguish built-in operators from function calls
+- Fallback to Kernel functions when not in parent module
 - Validate tail position for `recur`
 - Generate idiomatic Elixir code
 
-**Current Implementation**: Handles `defn` with parameters, `let` bindings, `if` conditionals, arithmetic operations, function calls, string concatenation, Elixir interop, and parent module function calls
+**Current Implementation**: Handles `defn` with parameters, `let` bindings, `if` conditionals, arithmetic operations, function calls, string concatenation, Elixir interop, parent module function calls, and Kernel function fallback
 
 ---
 
@@ -178,6 +179,7 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [x] Recursive function calls
 - [x] Parent module function access from Clojure code
 - [x] Built-in operator detection
+- [x] Kernel function fallback
 
 ### Not Yet Implemented
 - [ ] `recur` as special tail-call form
@@ -241,3 +243,12 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Local recursive calls remain unqualified
 - Enables sharing Elixir functions with Clojure code
 - All 7 tests passing with parent function calls
+
+**Kernel Function Fallback**: Common Kernel functions automatically available
+- Added list of common Kernel functions (length, hd, tl, elem, abs, etc.)
+- Unknown functions checked against Kernel function list
+- If in Kernel list, qualified with `Kernel.function_name`
+- If not in Kernel list, qualified with parent module
+- Enables using Kernel functions without explicit Module/function syntax
+- Example: `(length lst)` calls `Kernel.length(lst)`
+- All 8 tests passing with Kernel fallback

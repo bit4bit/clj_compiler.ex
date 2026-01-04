@@ -2,6 +2,7 @@
 
 defmodule CljCompiler.Translator do
   @built_in_ops ~w(+ - * / < > <= >= = == != and or not)
+  @kernel_functions ~w(length hd tl elem abs div rem max min round floor ceil trunc is_atom is_binary is_boolean is_float is_function is_integer is_list is_map is_number is_pid is_port is_reference is_tuple)
 
   def translate(forms, parent_module) do
     function_names = extract_function_names(forms)
@@ -115,6 +116,11 @@ defmodule CljCompiler.Translator do
         MapSet.member?(function_names, fn_name) ->
           quote do
             unquote(function_atom)(unquote_splicing(translated_args))
+          end
+
+        fn_name in @kernel_functions ->
+          quote do
+            Kernel.unquote(function_atom)(unquote_splicing(translated_args))
           end
 
         true ->

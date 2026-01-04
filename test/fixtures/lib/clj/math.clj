@@ -7,3 +7,5 @@
 (defn factorial [n] (if (< n 2) 1 (* n (factorial (- n 1)))))
 
 (defn sum_via_parent [a b] (do_sum a b))
+
+(defn get_list_length [lst] (length lst))

@@ -77,7 +77,25 @@ ClojureProject.My.Math.calculate(5, 10)
 # => 15
 ```
 
-Unknown function calls (not operators or local functions) are automatically qualified with the parent module name.
+Unknown function calls are resolved in this order:
+1. Built-in operators (`+`, `-`, `*`, etc.) - left unqualified
+2. Local functions defined in the same namespace - left unqualified
+3. Common Kernel functions (`length`, `hd`, `tl`, `elem`, etc.) - qualified with `Kernel`
+4. Parent module functions - qualified with parent module name
+
+Example using Kernel function:
+
+```clojure
+(ns my.utils)
+
+(defn get_size [lst]
+  (length lst))
+```
+
+```elixir
+ClojureProject.My.Utils.get_size([1, 2, 3])
+# => 3
+```
 
 ## Running Tests
 
@@ -91,6 +109,7 @@ mix test
 - Directory scanning and multi-file compilation
 - Dynamic module generation from namespaces
 - **Parent module function access** - Call Elixir functions defined in the parent module from Clojure code
+- **Kernel function fallback** - Common Kernel functions (length, hd, tl, elem, abs, etc.) automatically available
 - Function definitions with `defn` (with parameters)
 - String literals and concatenation with `str`
 - Numbers and arithmetic operations (`+`, `-`, `*`, `<`, `>`)
