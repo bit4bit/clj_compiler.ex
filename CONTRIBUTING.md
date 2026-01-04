@@ -4,6 +4,15 @@
 
 This project is developed with LLM assistance. Follow these rules:
 
+### Getting Started
+
+**First Prompt**: Always start with:
+```
+can you read the ruleset, spec and contributing docs?
+```
+
+This ensures the LLM agent understands the project context before making changes.
+
 ### Core Principles
 
 1. **Test-Driven Development**: Write tests before implementation
