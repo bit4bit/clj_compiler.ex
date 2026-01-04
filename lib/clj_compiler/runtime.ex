@@ -1,4 +1,8 @@
 defmodule CljCompiler.Runtime do
+  @runtime_functions ~w(conj get assoc dissoc)
+
+  def runtime_functions, do: @runtime_functions
+
   def call_with_fallback(parent_module, function, args) do
     arity = length(args)
 
@@ -27,9 +31,5 @@ defmodule CljCompiler.Runtime do
 
   def dissoc(map, keys) when is_list(keys) do
     Enum.reduce(keys, map, fn key, acc -> Map.delete(acc, key) end)
-  end
-
-  def dissoc(map, key) do
-    Map.delete(map, key)
   end
 end

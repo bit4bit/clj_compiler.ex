@@ -158,4 +158,9 @@ defmodule CljCompilerTest do
     assert ClojureProject.Example.Data.remove_many(original) == %{a: 1, g: 7}
   end
 
+  test "dissoc with vector of keys" do
+    original = %{a: 1, b: 2, c: 3, d: 4}
+    assert ClojureProject.Example.Data.remove_with_vector(original) == %{a: 1, d: 4}
+  end
+
 end

@@ -1,5 +1,6 @@
 defmodule CljCompiler.Translator do
   @built_in_ops ~w(+ - * / < > <= >= = == != and or not)
+  @runtime_functions CljCompiler.Runtime.runtime_functions()
 
   def translate(forms, parent_module) do
     function_names = extract_function_names(forms)
@@ -137,32 +138,8 @@ defmodule CljCompiler.Translator do
       function_atom = String.to_atom(fn_name)
 
       cond do
-        fn_name == "conj" ->
-          quote do
-            CljCompiler.Runtime.conj(unquote_splicing(translated_args))
-          end
-
-        fn_name == "get" ->
-          quote do
-            CljCompiler.Runtime.get(unquote_splicing(translated_args))
-          end
-
-        fn_name == "assoc" ->
-          quote do
-            CljCompiler.Runtime.assoc(unquote_splicing(translated_args))
-          end
-
-        fn_name == "dissoc" ->
-          case translated_args do
-            [map_ast] ->
-              quote do
-                CljCompiler.Runtime.dissoc(unquote(map_ast))
-              end
-            [map_ast | keys_ast] ->
-              quote do
-                CljCompiler.Runtime.dissoc(unquote(map_ast), [unquote_splicing(keys_ast)])
-              end
-          end
+        fn_name in @runtime_functions ->
+          translate_runtime_call(fn_name, translated_args)
 
         fn_name in @built_in_ops ->
           quote do
@@ -187,4 +164,11 @@ defmodule CljCompiler.Translator do
   end
 
   defp translate_expr(_, _parent_module, _function_names), do: nil
+
+  defp translate_runtime_call(fn_name, translated_args) do
+    function_atom = String.to_atom(fn_name)
+    quote do
+      CljCompiler.Runtime.unquote(function_atom)(unquote_splicing(translated_args))
+    end
+  end
 end

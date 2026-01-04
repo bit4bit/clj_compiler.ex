@@ -202,7 +202,7 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [x] Keyword-as-function for map access
 - [x] get function for map access
 - [x] assoc function for map updates
-- [x] dissoc function for map key removal (variadic)
+- [x] dissoc function for map key removal (vector syntax)
 
 ### Not Yet Implemented
 - [ ] `recur` as special tail-call form
@@ -325,20 +325,38 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - `get/2` retrieves value for key, `get/3` provides default value
 - Added `CljCompiler.Runtime.assoc/3` for adding/updating map keys
 - Translates to `Map.put/3` in Elixir
-- Added `CljCompiler.Runtime.dissoc/2` for variadic key removal
-- Supports removing any number of keys from map
+- Added `CljCompiler.Runtime.dissoc/2` for removing keys from map
+- Requires vector syntax: `(dissoc m [:a :b :c])`
 - Uses `Enum.reduce` with `Map.delete/2` for multiple keys
-- Translator collects keys into list for variadic support
-- Special handling in translator for all three functions
+- No special handling needed in translator
 - Added tests for get with/without default, assoc add/update, dissoc single/multiple
 - All 27 tests passing with map access functions
 
-**Variadic dissoc**: Support for any number of keys in dissoc
-- Refactored dissoc from multiple arities to single variadic implementation
-- `dissoc/2` handles single key or list of keys
-- Translator wraps multiple keys into list at compile time
+**Vector syntax for dissoc**: Simplified dissoc to use vector syntax
+- Refactored dissoc to accept list of keys as second argument
+- DSL syntax requires vector: `(dissoc m [:a :b :c])`
+- `dissoc/2` accepts map and list of keys
+- Use `Enum.reduce` with `Map.delete/2` for multiple keys
 - Added test for dissoc with 5 keys
-- All 28 tests passing with variadic dissoc
+- All 28 tests passing with vector syntax dissoc
+
+**Translator Refactoring**: Decoupled translator from runtime function knowledge
+- Added `runtime_functions/0` in Runtime module listing all runtime functions
+- Translator uses `@runtime_functions` module attribute from Runtime
+- Removed hardcoded runtime function checks from translator
+- Created `translate_runtime_call/2` helper for runtime function translation
+- Translator no longer needs updates when adding new runtime functions
+- All 28 tests passing with refactored translator
+
+**Remove dissoc special case from translator**: Fully decoupled translator
+- Changed DSL syntax to require vector for dissoc keys
+- Syntax: `(dissoc m [:key1 :key2])` instead of `(dissoc m :key1 :key2)`
+- Removed special `translate_runtime_call/2` clause for dissoc
+- Translator now handles dissoc like any other runtime function
+- Runtime implementation uses single clause with guard `when is_list(keys)`
+- Updated all test fixtures to use vector syntax
+- Added test for vector syntax
+- All 29 tests passing with fully decoupled translator
 
 
 
