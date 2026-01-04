@@ -1,5 +1,3 @@
-# LLM-Assisted
-
 # CljCompiler
 
 Elixir library for writing modules using Clojure-like syntax, compiled at Elixir compile time.
@@ -15,27 +13,38 @@ mix deps.get
 
 ## Usage
 
-Create a module that uses `CljCompiler`:
+Create a module that uses `CljCompiler` with a directory:
 
 ```elixir
-defmodule MyModule do
-  use CljCompiler
+defmodule MyApp do
+  use CljCompiler, dir: "lib/clj"
 end
 ```
 
-Create a corresponding `.clj` file at `test/fixtures/Elixir.MyModule.clj`:
+Create `.clj` files in the specified directory with namespace declarations:
 
 ```clojure
+(ns my.app.core)
+
 (defn hello [] "Hello World")
+
+(defn greet [name] (str "Hello, " name))
 ```
 
-The compiler will read the `.clj` file at compile time and generate the Elixir function.
+The compiler will:
+1. Scan all `.clj` files in the directory at compile time
+2. Extract namespace declarations
+3. Generate corresponding Elixir modules
+4. Inject functions into those modules
 
-Call the function:
+Call the functions using the generated module:
 
 ```elixir
-MyModule.hello()
+My.App.Core.hello()
 # => "Hello World"
+
+My.App.Core.greet("Alice")
+# => "Hello, Alice"
 ```
 
 ## Running Tests
@@ -46,6 +55,9 @@ mix test
 
 ## Current Features
 
+- Namespace declarations `(ns ...)`
+- Directory scanning and multi-file compilation
+- Dynamic module generation from namespaces
 - Function definitions with `defn` (with parameters)
 - String literals and concatenation with `str`
 - Numbers and arithmetic operations (`+`, `-`, `*`, `<`, `>`)
@@ -55,6 +67,7 @@ mix test
 - Elixir module interop (`Enum/count`, etc.)
 - Vectors `[]`
 - Compile-time error reporting
+- Automatic recompilation on `.clj` file changes
 
 ## Roadmap
 
@@ -70,9 +83,13 @@ mix test
 
 The compilation pipeline:
 
-1. Read `.clj` file at compile time
-2. Parse into intermediate AST
-3. Translate to Elixir AST
-4. Inject functions into module
+1. Scan directory for `.clj` files at compile time
+2. Register each file as `@external_resource`
+3. Parse each file into intermediate AST
+4. Extract namespace declarations
+5. Convert namespaces to Elixir module names
+6. Translate functions to Elixir AST
+7. Generate `defmodule` for each namespace
+8. Inject modules into compilation
 
 See `spec.md` for detailed design documentation.

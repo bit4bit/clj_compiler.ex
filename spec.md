@@ -24,15 +24,17 @@
 **Role**: Main entry point providing the `use` macro
 
 **Responsibilities**:
-- Define `__using__/1` macro that triggers at compile time
-- Resolve `.clj` file path from calling module name
-- Register file as `@external_resource` for recompilation
-- Read `.clj` file content
+- Define `__using__/1` macro accepting `dir` option
+- Scan directory for all `.clj` files
+- Register each file as `@external_resource` for recompilation
+- Extract `(ns ...)` declaration from each file
+- Convert namespace to Elixir module name
+- Generate `defmodule` for each namespace
 - Delegate to Reader for parsing
 - Delegate to Translator for AST generation
-- Inject generated functions into calling module
+- Inject generated modules into compilation
 
-**Current Implementation**: Minimal - handles only `defn` with no arguments returning string literals
+**Current Implementation**: Full namespace-based compilation - scans directory, extracts namespaces, creates modules dynamically
 
 ---
 
@@ -50,9 +52,10 @@
   - `{:keyword, atom}`
 - Handle comments (`;` line comments)
 - Match parentheses and brackets
+- Parse `(ns ...)` declarations
 - Report syntax errors with location info
 
-**Current Implementation**: Supports lists, vectors, symbols, strings, numbers, and nested structures
+**Current Implementation**: Supports lists, vectors, symbols, strings, numbers, nested structures, and namespace declarations
 
 ---
 
@@ -100,11 +103,25 @@
 - Provide test fixture
 - Show working example
 
-**Current Content**: Multiple function definitions demonstrating all implemented features
+**Current Content**: Deprecated - replaced by namespace-based fixtures in `test/fixtures/lib/clj/`
 
 ---
 
-### 6. `mix.exs`
+### 6. `test/fixtures/lib/clj/*.clj`
+**Role**: Namespace-based test fixtures
+
+**Responsibilities**:
+- Demonstrate namespace declarations
+- Provide multiple module examples
+- Show working syntax
+
+**Current Files**:
+- `example.clj` with `(ns example.core)`
+- `math.clj` with `(ns example.math)`
+
+---
+
+### 7. `mix.exs`
 **Role**: Project configuration
 
 **Responsibilities**:
@@ -114,7 +131,7 @@
 
 ---
 
-### 7. `README.md`
+### 8. `README.md`
 **Role**: User documentation
 
 **Responsibilities**:
@@ -129,8 +146,11 @@
 
 ### Implemented
 - [x] Project structure
-- [x] Basic `use CljCompiler` macro
-- [x] File resolution from module name
+- [x] `use CljCompiler, dir: "path"` macro
+- [x] Directory scanning for `.clj` files
+- [x] Namespace declaration parsing `(ns ...)`
+- [x] Namespace to module name conversion
+- [x] Dynamic module generation
 - [x] External resource tracking
 - [x] Reader (lists, vectors, symbols, strings, numbers)
 - [x] Translator (defn, let, if, function calls)
@@ -186,3 +206,11 @@
 - Fixed vector parsing to handle nested lists
 - Added Elixir module interop (Module/function syntax)
 - All 7 integration tests passing
+
+**Namespace Architecture**: Directory-based compilation
+- Changed from per-module `.clj` files to directory scanning
+- Added `(ns ...)` declaration support
+- Implemented namespace to module name conversion
+- Modules now generated dynamically from namespace declarations
+- Single `use CljCompiler, dir: "path"` compiles all files in directory
+- All 5 tests passing with new architecture

@@ -1,23 +1,75 @@
-# LLM-Assisted
-
 defmodule CljCompiler do
-  defmacro __using__(_opts) do
+  defmacro __using__(opts) do
+    dir = Keyword.fetch!(opts, :dir)
+
     quote do
+      @clj_dir unquote(dir)
       @before_compile CljCompiler
     end
   end
 
   defmacro __before_compile__(env) do
-    module_name = env.module |> Atom.to_string()
-    clj_file = "test/fixtures/#{module_name}.clj"
+    dir = Module.get_attribute(env.module, :clj_dir)
+    clj_files = Path.wildcard("#{dir}/**/*.clj")
 
-    Module.put_attribute(env.module, :external_resource, clj_file)
+    modules =
+      Enum.flat_map(clj_files, fn file ->
+        Module.put_attribute(env.module, :external_resource, file)
+        content = File.read!(file)
+        compile_file(content)
+      end)
 
-    content = File.read!(clj_file)
+    quote do
+      (unquote_splicing(modules))
+    end
+  end
 
+  defp compile_file(content) do
     ast = CljCompiler.Reader.parse(content)
-    functions = CljCompiler.Translator.translate(ast)
+    extract_modules(ast)
+  end
 
-    functions
+  defp extract_modules(forms) do
+    {ns, functions} = extract_namespace_and_functions(forms)
+    module_name = namespace_to_module(ns)
+
+    module_ast =
+      quote do
+        defmodule unquote(module_name) do
+          (unquote_splicing(CljCompiler.Translator.translate(functions)))
+        end
+      end
+
+    [module_ast]
+  end
+
+  defp extract_namespace_and_functions(forms) do
+    {ns_form, rest} = extract_ns_form(forms)
+    ns = extract_namespace(ns_form)
+    {ns, rest}
+  end
+
+  defp extract_ns_form([{:list, [{:symbol, "ns"}, {:symbol, ns}]} | rest]) do
+    {ns, rest}
+  end
+
+  defp extract_ns_form([_ | rest]) do
+    extract_ns_form(rest)
+  end
+
+  defp extract_namespace(ns) when is_binary(ns), do: ns
+
+  defp namespace_to_module(ns) do
+    parts =
+      ns
+      |> String.split(".")
+      |> Enum.map(fn part ->
+        part
+        |> String.split("-")
+        |> Enum.map(&String.capitalize/1)
+        |> Enum.join("")
+      end)
+
+    Module.concat(parts)
   end
 end

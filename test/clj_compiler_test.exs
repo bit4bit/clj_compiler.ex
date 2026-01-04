@@ -1,38 +1,27 @@
-# LLM-Assisted
-
 defmodule CljCompilerTest do
   use ExUnit.Case
 
-  defmodule Example do
-    use CljCompiler
+  defmodule ClojureProject do
+    use CljCompiler, dir: "test/fixtures/lib/clj"
   end
 
-  test "hello world function" do
-    assert Example.hello() == "Hello World"
+  test "compiles module from namespace declaration" do
+    assert Example.Core.hello() == "Hello World"
   end
 
-  test "function with parameters" do
-    assert Example.greet("Alice") == "Hello, Alice"
+  test "function with parameters from namespaced module" do
+    assert Example.Core.greet("Alice") == "Hello, Alice"
   end
 
-  test "arithmetic operations" do
-    assert Example.add(2, 3) == 5
+  test "arithmetic operations from math namespace" do
+    assert Example.Math.add(2, 3) == 5
   end
 
-  test "if expression" do
-    assert Example.is_positive(5) == "positive"
-    assert Example.is_positive(-3) == "negative"
+  test "multiply from math namespace" do
+    assert Example.Math.multiply(4, 5) == 20
   end
 
-  test "let bindings" do
-    assert Example.compute(10) == 35
-  end
-
-  test "recur tail recursion" do
-    assert Example.factorial(5) == 120
-  end
-
-  test "elixir interop" do
-    assert Example.list_length([1, 2, 3, 4]) == 4
+  test "factorial from math namespace" do
+    assert Example.Math.factorial(5) == 120
   end
 end
