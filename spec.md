@@ -200,6 +200,9 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [x] Boolean literals (true/false)
 - [x] conj function (prepend behavior)
 - [x] Keyword-as-function for map access
+- [x] get function for map access
+- [x] assoc function for map updates
+- [x] dissoc function for map key removal
 
 ### Not Yet Implemented
 - [ ] `recur` as special tail-call form
@@ -316,6 +319,19 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Added tests for passing and processing maps as function arguments
 - Functions can receive maps and extract values using keyword access
 - All 21 tests passing with keyword-as-function support
+
+**Map Access Functions**: get, assoc, and dissoc for map manipulation
+- Added `CljCompiler.Runtime.get/2` and `get/3` for map value retrieval
+- `get/2` retrieves value for key, `get/3` provides default value
+- Added `CljCompiler.Runtime.assoc/3` for adding/updating map keys
+- Translates to `Map.put/3` in Elixir
+- Added `CljCompiler.Runtime.dissoc/2`, `dissoc/3`, `dissoc/4` for key removal
+- Supports removing 1-3 keys from map
+- Translates to `Map.delete/2` with pipeline for multiple keys
+- Special handling in translator for all three functions
+- Added tests for get with/without default, assoc add/update, dissoc single/multiple
+- All 27 tests passing with map access functions
+
 
 
 

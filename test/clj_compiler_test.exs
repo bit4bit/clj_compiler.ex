@@ -124,4 +124,33 @@ defmodule CljCompilerTest do
     assert ClojureProject.Example.Data.identity_map(config) == config
   end
 
+  test "get retrieves value from map" do
+    person = %{name: "Bob", age: 25}
+    assert ClojureProject.Example.Data.lookup_name(person) == "Bob"
+  end
+
+  test "get with default value when key missing" do
+    assert ClojureProject.Example.Data.get_with_default(%{x: 1}, :y) == "not found"
+  end
+
+  test "assoc adds key-value to map" do
+    original = %{name: "Alice"}
+    assert ClojureProject.Example.Data.add_age(original, 30) == %{name: "Alice", age: 30}
+  end
+
+  test "assoc updates existing key in map" do
+    original = %{name: "Alice", age: 25}
+    assert ClojureProject.Example.Data.update_age(original, 30) == %{name: "Alice", age: 30}
+  end
+
+  test "dissoc removes key from map" do
+    original = %{name: "Alice", age: 30, city: "NYC"}
+    assert ClojureProject.Example.Data.remove_city(original) == %{name: "Alice", age: 30}
+  end
+
+  test "dissoc with multiple keys" do
+    original = %{a: 1, b: 2, c: 3, d: 4}
+    assert ClojureProject.Example.Data.remove_multiple(original) == %{a: 1, d: 4}
+  end
+
 end

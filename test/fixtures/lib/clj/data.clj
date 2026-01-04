@@ -13,3 +13,15 @@
 (defn get_id [user] (:id user))
 
 (defn identity_map [m] m)
+
+(defn lookup_name [person] (get person :name))
+
+(defn get_with_default [m k] (get m k "not found"))
+
+(defn add_age [person age] (assoc person :age age))
+
+(defn update_age [person age] (assoc person :age age))
+
+(defn remove_city [person] (dissoc person :city))
+
+(defn remove_multiple [m] (dissoc m :b :c))

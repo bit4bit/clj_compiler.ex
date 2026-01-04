@@ -142,6 +142,21 @@ defmodule CljCompiler.Translator do
             CljCompiler.Runtime.conj(unquote_splicing(translated_args))
           end
 
+        fn_name == "get" ->
+          quote do
+            CljCompiler.Runtime.get(unquote_splicing(translated_args))
+          end
+
+        fn_name == "assoc" ->
+          quote do
+            CljCompiler.Runtime.assoc(unquote_splicing(translated_args))
+          end
+
+        fn_name == "dissoc" ->
+          quote do
+            CljCompiler.Runtime.dissoc(unquote_splicing(translated_args))
+          end
+
         fn_name in @built_in_ops ->
           quote do
             unquote(function_atom)(unquote_splicing(translated_args))
