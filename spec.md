@@ -64,7 +64,7 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Parse `(ns ...)` declarations
 - Report syntax errors with location info
 
-**Current Implementation**: Supports lists, vectors, symbols, strings, numbers, nested structures, and namespace declarations
+**Current Implementation**: Supports lists, vectors, symbols, strings, numbers, nested structures, namespace declarations, and parent module function calls
 
 ---
 
@@ -77,10 +77,12 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Translate `let` forms to sequential bindings
 - Translate `recur` to recursive calls
 - Handle Elixir interop (`Enum/count` → `Enum.count`)
+- Handle parent module function calls (qualify unknown functions)
+- Distinguish built-in operators from function calls
 - Validate tail position for `recur`
 - Generate idiomatic Elixir code
 
-**Current Implementation**: Handles `defn` with parameters, `let` bindings, `if` conditionals, arithmetic operations, function calls, string concatenation, and Elixir interop
+**Current Implementation**: Handles `defn` with parameters, `let` bindings, `if` conditionals, arithmetic operations, function calls, string concatenation, Elixir interop, and parent module function calls
 
 ---
 
@@ -174,6 +176,8 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [x] String concatenation (str)
 - [x] Conditional expressions (if)
 - [x] Recursive function calls
+- [x] Parent module function access from Clojure code
+- [x] Built-in operator detection
 
 ### Not Yet Implemented
 - [ ] `recur` as special tail-call form
@@ -229,3 +233,11 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - `ClojureProject` with `(ns example.math)` creates `ClojureProject.Example.Math`
 - Allows multiple projects with same namespaces without conflicts
 - All 5 tests passing with nested module structure
+
+**Parent Module Function Access**: Clojure code can call parent module functions
+- Unknown function calls (not operators, not local functions) are qualified with parent module
+- Example: `(do_sum a b)` in Clojure calls `ClojureProject.do_sum(a, b)`
+- Built-in operators (+, -, *, <, >, etc.) remain unqualified
+- Local recursive calls remain unqualified
+- Enables sharing Elixir functions with Clojure code
+- All 7 tests passing with parent function calls

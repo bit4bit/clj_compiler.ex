@@ -33,11 +33,12 @@ defmodule CljCompiler do
   defp extract_modules(forms, parent_module) do
     {ns, functions} = extract_namespace_and_functions(forms)
     module_name = namespace_to_module(ns, parent_module)
+    translated_functions = CljCompiler.Translator.translate(functions, parent_module)
 
     module_ast =
       quote do
         defmodule unquote(module_name) do
-          (unquote_splicing(CljCompiler.Translator.translate(functions)))
+          (unquote_splicing(translated_functions))
         end
       end
 

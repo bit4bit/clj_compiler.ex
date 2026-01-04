@@ -3,6 +3,10 @@ defmodule CljCompilerTest do
 
   defmodule ClojureProject do
     use CljCompiler, dir: "test/fixtures/lib/clj"
+
+    def do_sum(a, b), do: a + b
+
+    def greet_prefix(name), do: "Mr. #{name}"
   end
 
   test "compiles module from namespace declaration" do
@@ -23,5 +27,13 @@ defmodule CljCompilerTest do
 
   test "factorial from math namespace" do
     assert ClojureProject.Example.Math.factorial(5) == 120
+  end
+
+  test "calls parent module function from clojure" do
+    assert ClojureProject.Example.Math.sum_via_parent(3, 4) == 7
+  end
+
+  test "calls parent module function with string from clojure" do
+    assert ClojureProject.Example.Core.formal_greet("Alice") == "Hello, Mr. Alice"
   end
 end

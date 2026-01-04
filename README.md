@@ -53,6 +53,32 @@ ClojureProject.My.App.Core.greet("Alice")
 
 The namespace `my.app.core` becomes `ClojureProject.My.App.Core` because modules are nested under the parent.
 
+### Calling Parent Module Functions
+
+Functions defined in the parent module are accessible from Clojure code:
+
+```elixir
+defmodule ClojureProject do
+  use CljCompiler, dir: "lib/clj"
+  
+  def do_sum(a, b), do: a + b
+end
+```
+
+```clojure
+(ns my.math)
+
+(defn calculate [x y]
+  (do_sum x y))
+```
+
+```elixir
+ClojureProject.My.Math.calculate(5, 10)
+# => 15
+```
+
+Unknown function calls (not operators or local functions) are automatically qualified with the parent module name.
+
 ## Running Tests
 
 ```sh
@@ -64,6 +90,7 @@ mix test
 - Namespace declarations `(ns ...)`
 - Directory scanning and multi-file compilation
 - Dynamic module generation from namespaces
+- **Parent module function access** - Call Elixir functions defined in the parent module from Clojure code
 - Function definitions with `defn` (with parameters)
 - String literals and concatenation with `str`
 - Numbers and arithmetic operations (`+`, `-`, `*`, `<`, `>`)
