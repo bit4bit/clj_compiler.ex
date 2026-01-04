@@ -201,10 +201,12 @@ defmodule CljCompilerTest do
     """
 
     error = assert_raise CompileError, fn ->
-      CljCompiler.Translator.translate(CljCompiler.Reader.parse(source, "test.clj"), TestModule)
+      CljCompiler.Translator.translate(CljCompiler.Reader.parse(source, "test.clj"), TestModule, "test.clj")
     end
 
     assert error.description =~ "Unable to resolve symbol: defa"
+    assert error.file == "test.clj"
+    assert error.line == 1
   end
 
   test "def creates module attribute" do
@@ -217,10 +219,27 @@ defmodule CljCompilerTest do
     """
 
     ast = CljCompiler.Reader.parse(source, "test.clj")
-    result = CljCompiler.Translator.translate(ast, TestModule)
+    result = CljCompiler.Translator.translate(ast, TestModule, "test.clj")
 
     assert Enum.any?(result, fn
       {:@, _, [{:max_size, _, [100]}]} -> true
+      _ -> false
+    end)
+  end
+
+  test "location metadata includes clj file path" do
+    source = """
+    (ns test.location)
+
+    (defn foo [x] x)
+    """
+
+    ast = CljCompiler.Reader.parse(source, "test/example.clj")
+    result = CljCompiler.Translator.translate(ast, TestModule, "test/example.clj")
+
+    assert Enum.any?(result, fn
+      {:def, meta, [{:foo, _fn_meta, _params}, _body]} ->
+        Keyword.get(meta, :file) == 'test/example.clj'
       _ -> false
     end)
   end

@@ -410,4 +410,19 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Created test fixture attrs.clj with numeric, string, and float attributes
 - All 39 tests passing with def and float support
 
+**Location Metadata for Warnings**: Improved compiler warnings with .clj file locations
+- Added file parameter to `translate/3` function
+- Pass file path through translation pipeline
+- Add location metadata `[file: charlist, line: 1]` to generated function AST
+- Parameters now include file/line metadata for better compiler warnings
+- Track param_names through translation to properly reference parameters
+- Unused variable warnings eliminated by proper parameter handling
+- Generated functions now show .clj file in compilation messages
+- Fixed clause ordering warning by grouping translate_form functions
+- Added test verifying location metadata includes .clj file path in AST
+- CompileError now includes file and line information for unknown symbols
+- Added test assertions verifying error.file and error.line in CompileError
+- All 40 tests passing with location metadata support
+
+
 

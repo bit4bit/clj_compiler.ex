@@ -41,7 +41,7 @@ defmodule CljCompiler do
   defp extract_modules(forms, parent_module, file) do
     {{ns, use_clauses}, functions} = extract_namespace_and_functions(forms, file)
     module_name = namespace_to_module(ns, parent_module)
-    translated_functions = CljCompiler.Translator.translate(functions, parent_module)
+    translated_functions = CljCompiler.Translator.translate(functions, parent_module, file)
     use_asts = generate_use_asts(use_clauses)
 
     module_ast =
