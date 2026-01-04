@@ -1,5 +1,3 @@
-# LLM-Assisted
-
 defmodule CljCompiler.Translator do
   @built_in_ops ~w(+ - * / < > <= >= = == != and or not)
 

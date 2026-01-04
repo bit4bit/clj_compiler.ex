@@ -1,5 +1,3 @@
-; LLM-Assisted
-
 (defn hello [] "Hello World")
 
 (defn greet [name] (str "Hello, " name))
