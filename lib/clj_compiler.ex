@@ -39,13 +39,15 @@ defmodule CljCompiler do
   end
 
   defp extract_modules(forms, parent_module, file) do
-    {ns, functions} = extract_namespace_and_functions(forms, file)
+    {{ns, use_clauses}, functions} = extract_namespace_and_functions(forms, file)
     module_name = namespace_to_module(ns, parent_module)
     translated_functions = CljCompiler.Translator.translate(functions, parent_module)
+    use_asts = generate_use_asts(use_clauses)
 
     module_ast =
       quote do
         defmodule unquote(module_name) do
+          (unquote_splicing(use_asts))
           (unquote_splicing(translated_functions))
         end
       end
@@ -53,11 +55,25 @@ defmodule CljCompiler do
     [module_ast]
   end
 
+  defp generate_use_asts(use_clauses) do
+    Enum.map(use_clauses, fn {module_name, opts} ->
+      module_alias = Module.concat([module_name])
+      if opts == [] do
+        quote do
+          use unquote(module_alias)
+        end
+      else
+        quote do
+          use unquote(module_alias), unquote(opts)
+        end
+      end
+    end)
+  end
+
   defp extract_namespace_and_functions(forms, file) do
     case extract_ns_form(forms) do
-      {ns_form, rest} ->
-        ns = extract_namespace(ns_form)
-        {ns, rest}
+      {{ns, use_clauses}, rest} ->
+        {{ns, use_clauses}, rest}
       :error ->
         raise CompileError,
           file: file,
@@ -66,8 +82,14 @@ defmodule CljCompiler do
     end
   end
 
-  defp extract_ns_form([{:list, [{:symbol, "ns"}, {:symbol, ns}]} | rest]) do
-    {ns, rest}
+  defp extract_ns_form([{:list, ns_elements} | rest]) do
+    case ns_elements do
+      [{:symbol, "ns"}, {:symbol, ns} | clauses] ->
+        use_clauses = extract_use_clauses(clauses)
+        {{ns, use_clauses}, rest}
+      _ ->
+        extract_ns_form(rest)
+    end
   end
 
   defp extract_ns_form([_ | rest]) do
@@ -78,7 +100,42 @@ defmodule CljCompiler do
     :error
   end
 
-  defp extract_namespace(ns) when is_binary(ns), do: ns
+  defp extract_use_clauses(clauses) do
+    Enum.flat_map(clauses, fn
+      {:list, [{:keyword, :use} | modules]} ->
+        Enum.map(modules, &parse_use_module/1)
+      _ ->
+        []
+    end)
+  end
+
+  defp parse_use_module({:vector, [{:symbol, module_name}]}) do
+    {module_name, []}
+  end
+
+  defp parse_use_module({:vector, [{:symbol, module_name}, {:map, opts}]}) do
+    parsed_opts = parse_use_options(opts)
+    {module_name, parsed_opts}
+  end
+
+  defp parse_use_options(opts) do
+    opts
+    |> Enum.chunk_every(2)
+    |> Enum.map(fn [{:keyword, key}, value] ->
+      {key, translate_use_option_value(value)}
+    end)
+  end
+
+  defp translate_use_option_value({:symbol, "true"}), do: true
+  defp translate_use_option_value({:symbol, "false"}), do: false
+  defp translate_use_option_value({:number, n}), do: n
+  defp translate_use_option_value({:string, s}), do: s
+  defp translate_use_option_value({:keyword, k}), do: k
+  defp translate_use_option_value({:vector, elements}) do
+    Enum.map(elements, &translate_use_option_value/1)
+  end
+
+
 
   defp namespace_to_module(ns, parent_module) do
     parts =

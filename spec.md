@@ -203,6 +203,7 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [x] get function for map access
 - [x] assoc function for map updates
 - [x] dissoc function for map key removal (vector syntax)
+- [x] :use namespace declaration for Elixir module injection
 
 ### Not Yet Implemented
 - [ ] `recur` as special tail-call form
@@ -357,6 +358,20 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Updated all test fixtures to use vector syntax
 - Added test for vector syntax
 - All 29 tests passing with fully decoupled translator
+
+**Namespace :use Declaration**: Elixir use macro integration in namespace
+- Added :use keyword support in namespace declarations
+- Syntax: `(ns my.namespace (:use [ModuleName] [AnotherModule {:option value}]))`
+- Translates to Elixir `use` statements in generated modules
+- Supports modules without options: `(:use [Phoenix.Controller])`
+- Supports modules with options: `(:use [Phoenix.View {:layout false}])`
+- Multiple :use declarations in single namespace
+- Options parsed from maps and converted to keyword lists
+- Fixed mix.exs elixirc_paths typo (list -> lib)
+- Fixed namespace parsing to handle clauses in ns form
+- Created test support modules with __using__ macros
+- All 32 tests passing with :use namespace support
+
 
 
 

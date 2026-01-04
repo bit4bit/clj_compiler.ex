@@ -163,4 +163,29 @@ defmodule CljCompilerTest do
     assert ClojureProject.Example.Data.remove_with_vector(original) == %{a: 1, d: 4}
   end
 
+  defmodule UseTestParent do
+    def parent_function, do: "from parent"
+  end
+
+  defmodule UseTestProject do
+    use CljCompiler, dir: "test/fixtures/lib/use_test"
+
+    def parent_function, do: "from parent"
+  end
+
+  test "namespace with :use without options" do
+    assert function_exported?(CljCompilerTest.UseTestProject.UseExample.Simple, :test_function, 0)
+    assert CljCompilerTest.UseTestProject.UseExample.Simple.test_function() == "from parent"
+  end
+
+  test "namespace with :use with options" do
+    assert function_exported?(CljCompilerTest.UseTestProject.UseExample.WithOptions, :configured, 0)
+    assert CljCompilerTest.UseTestProject.UseExample.WithOptions.configured() == true
+  end
+
+  test "namespace with multiple :use declarations" do
+    assert function_exported?(CljCompilerTest.UseTestProject.UseExample.Multiple, :has_multiple, 0)
+    assert CljCompilerTest.UseTestProject.UseExample.Multiple.has_multiple() == true
+  end
+
 end
