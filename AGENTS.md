@@ -1,29 +1,16 @@
 # Contributing to CljCompiler
 
-## LLM Agent Contribution Guidelines
-
-This project is developed with LLM assistance. Follow these rules:
-
-### Getting Started
-
-**First Prompt**: Always start with:
-```
-can you read the ruleset.md, spec.md and CONTRIBUTING.md docs?
-```
-
-This ensures the LLM agent understands the project context before making changes.
-
 ### Core Principles
 
 1. **Test-Driven Development**: Write tests before implementation, then refactor.
 2. **No Comments**: Code should be self-explanatory
 3. **No Examples**: Only write code that's explicitly requested
 4. **No Apologies**: Just fix and move forward
-5. **Human Pairing**: Ask human review after refactoring.
+5. **Human Pairing**: Ask human review after refactor.
 
 ### Workflow
 
-1. Read `spec.md` before making changes
+1. Read `spec.md` and `ruleset.md` before making changes
 2. Write failing test first
 3. Implement minimal code to pass test
 4. Update `spec.md` changelog after completion
