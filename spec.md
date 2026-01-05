@@ -428,5 +428,15 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Test verifies error.line == 3 for error on line 3 of source
 - All 40 tests passing with actual line number tracking
 
+**Dynamic Arity Runtime Functions**: Support runtime functions with any number of arguments
+- Changed `translate_runtime_call/2` to use `apply/3` for dynamic arity resolution
+- Runtime functions no longer require explicit arity declaration in translator
+- Normalized runtime function names to replace hyphens with underscores (assoc-in → assoc_in)
+- Added `assoc-in` runtime function with 3 arguments for nested map updates
+- Function uses `put_in/3` with `Access.key/2` for path-based updates
+- Syntax: `(assoc-in m [k1 k2] v)` updates nested key path
+- All 41 tests passing with dynamic arity support
+
+
 
 

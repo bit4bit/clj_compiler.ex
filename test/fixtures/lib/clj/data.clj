@@ -29,3 +29,5 @@
 (defn remove_many [m] (dissoc m [:b :c :d :e :f]))
 
 (defn remove_with_vector [m] (dissoc m [:b :c]))
+
+(defn update_nested [m k1 k2 v] (assoc-in m [k1 k2] v))

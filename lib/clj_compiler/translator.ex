@@ -243,9 +243,9 @@ defmodule CljCompiler.Translator do
   defp translate_expr(_, _parent_module, _function_names, _attr_names, _param_names, _file), do: nil
 
   defp translate_runtime_call(fn_name, translated_args) do
-    function_atom = String.to_atom(fn_name)
+    normalized_name = fn_name |> String.replace("-", "_") |> String.to_atom()
     quote do
-      CljCompiler.Runtime.unquote(function_atom)(unquote_splicing(translated_args))
+      apply(CljCompiler.Runtime, unquote(normalized_name), unquote(translated_args))
     end
   end
 end

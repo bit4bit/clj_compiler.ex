@@ -163,6 +163,10 @@ defmodule CljCompilerTest do
     assert ClojureProject.Example.Data.remove_with_vector(original) == %{a: 1, d: 4}
   end
 
+  test "runtime function with 4 arguments" do
+    assert ClojureProject.Example.Data.update_nested(%{user: %{name: "Alice"}}, :user, :age, 30) == %{user: %{name: "Alice", age: 30}}
+  end
+
   defmodule UseTestParent do
     def parent_function, do: "from parent"
   end

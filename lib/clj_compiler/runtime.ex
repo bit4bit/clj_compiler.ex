@@ -1,5 +1,5 @@
 defmodule CljCompiler.Runtime do
-  @runtime_functions ~w(conj get assoc dissoc)
+  @runtime_functions ~w(conj get assoc dissoc assoc-in)
 
   def runtime_functions, do: @runtime_functions
 
@@ -31,5 +31,9 @@ defmodule CljCompiler.Runtime do
 
   def dissoc(map, keys) when is_list(keys) do
     Enum.reduce(keys, map, fn key, acc -> Map.delete(acc, key) end)
+  end
+
+  def assoc_in(map, keys, value) when is_list(keys) do
+    put_in(map, Enum.map(keys, &Access.key(&1, %{})), value)
   end
 end
