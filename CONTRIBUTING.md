@@ -8,7 +8,7 @@ This project is developed with LLM assistance. Follow these rules:
 
 **First Prompt**: Always start with:
 ```
-can you read the ruleset, spec and contributing docs?
+can you read the ruleset.md, spec.md and CONTRIBUTING.md docs?
 ```
 
 This ensures the LLM agent understands the project context before making changes.
