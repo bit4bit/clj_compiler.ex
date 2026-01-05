@@ -15,10 +15,11 @@ This ensures the LLM agent understands the project context before making changes
 
 ### Core Principles
 
-1. **Test-Driven Development**: Write tests before implementation
+1. **Test-Driven Development**: Write tests before implementation, then refactor.
 2. **No Comments**: Code should be self-explanatory
 3. **No Examples**: Only write code that's explicitly requested
 4. **No Apologies**: Just fix and move forward
+5. **Human Pairing**: Ask human review after refactoring.
 
 ### Workflow
 
@@ -62,6 +63,7 @@ This ensures the LLM agent understands the project context before making changes
 - Update `README.md` if user-facing changes
 - Keep documentation concise
 - Use Markdown for all docs
+
 
 ### What NOT to Do
 
