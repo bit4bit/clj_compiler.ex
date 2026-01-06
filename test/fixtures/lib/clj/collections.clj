@@ -1,4 +1,4 @@
-(ns example.collections)
+(ns example.collections (:use [CljCompiler.Compat]))
 
 (defn add_to_list [item lst] (conj lst item))
 

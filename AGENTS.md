@@ -1,5 +1,8 @@
 # Contributing to CljCompiler
 
+Elixir library for writing modules using Clojure-like syntax, compiled at Elixir compile time.
+Using the macro system of Elixir.
+
 ### Build/Lint/Test Commands
 
 1. **Build project**: `mix compile` - compiles all Elixir source files

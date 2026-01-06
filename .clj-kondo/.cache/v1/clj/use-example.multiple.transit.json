@@ -1,0 +1,1 @@
+["^ ","~$check_both",["^ ","~:row",5,"~:col",1,"~:fixed-arities",["~#set",[0]],"~:name","^0","~:ns","~$use-example.multiple","~:top-ns","^7","~:type","~:fn"],"~:filename","/home/bit4bit/src/elixir-1.15/clj_compiler/test/fixtures/lib/use_test/multiple.clj"]

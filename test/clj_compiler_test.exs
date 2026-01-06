@@ -62,9 +62,10 @@ defmodule CljCompilerTest do
       (+ x y
     """
 
-    error = assert_raise CljCompiler.Reader.ParseError, fn ->
-      CljCompiler.Reader.parse(source)
-    end
+    error =
+      assert_raise CljCompiler.Reader.ParseError, fn ->
+        CljCompiler.Reader.parse(source)
+      end
 
     assert error.line == 4
     assert error.message =~ "Unclosed parenthesis"
@@ -75,7 +76,11 @@ defmodule CljCompilerTest do
   end
 
   test "returns map literal" do
-    assert ClojureProject.Example.Data.get_config() == %{host: "localhost", port: 8080, debug: true}
+    assert ClojureProject.Example.Data.get_config() == %{
+             host: "localhost",
+             port: 8080,
+             debug: true
+           }
   end
 
   test "returns empty map" do
@@ -92,9 +97,18 @@ defmodule CljCompilerTest do
     """
 
     ast = CljCompiler.Reader.parse(source, "test_maps.clj")
-    assert [{:list, [{:symbol, "ns"}, {:symbol, "test.maps"}], _},
-            {:list, [{:symbol, "defn"}, {:symbol, "get_user"}, {:vector, []}, {:map, _}], _},
-            {:list, [{:symbol, "defn"}, {:symbol, "process_map"}, {:vector, [{:symbol, "m"}]}, {:symbol, "m"}], _}] = ast
+
+    assert [
+             {:list, [{:symbol, "ns"}, {:symbol, "test.maps"}], _},
+             {:list, [{:symbol, "defn"}, {:symbol, "get_user"}, {:vector, []}, {:map, _}], _},
+             {:list,
+              [
+                {:symbol, "defn"},
+                {:symbol, "process_map"},
+                {:vector, [{:symbol, "m"}]},
+                {:symbol, "m"}
+              ], _}
+           ] = ast
   end
 
   test "conj adds element to list at front" do
@@ -164,7 +178,8 @@ defmodule CljCompilerTest do
   end
 
   test "runtime function with 4 arguments" do
-    assert ClojureProject.Example.Data.update_nested(%{user: %{name: "Alice"}}, :user, :age, 30) == %{user: %{name: "Alice", age: 30}}
+    assert ClojureProject.Example.Data.update_nested(%{user: %{name: "Alice"}}, :user, :age, 30) ==
+             %{user: %{name: "Alice", age: 30}}
   end
 
   defmodule UseTestParent do
@@ -183,12 +198,22 @@ defmodule CljCompilerTest do
   end
 
   test "namespace with :use with options" do
-    assert function_exported?(CljCompilerTest.UseTestProject.UseExample.WithOptions, :configured, 0)
+    assert function_exported?(
+             CljCompilerTest.UseTestProject.UseExample.WithOptions,
+             :configured,
+             0
+           )
+
     assert CljCompilerTest.UseTestProject.UseExample.WithOptions.configured() == true
   end
 
   test "namespace with multiple :use declarations" do
-    assert function_exported?(CljCompilerTest.UseTestProject.UseExample.Multiple, :has_multiple, 0)
+    assert function_exported?(
+             CljCompilerTest.UseTestProject.UseExample.Multiple,
+             :has_multiple,
+             0
+           )
+
     assert CljCompilerTest.UseTestProject.UseExample.Multiple.has_multiple() == true
   end
 
@@ -204,9 +229,14 @@ defmodule CljCompilerTest do
     (defa mo [] (+ 3 1))
     """
 
-    error = assert_raise CompileError, fn ->
-      CljCompiler.Translator.translate(CljCompiler.Reader.parse(source, "test.clj"), TestModule, "test.clj")
-    end
+    error =
+      assert_raise CompileError, fn ->
+        CljCompiler.Translator.translate(
+          CljCompiler.Reader.parse(source, "test.clj"),
+          TestModule,
+          "test.clj"
+        )
+      end
 
     assert error.description =~ "Unable to resolve symbol: defa"
     assert error.file == "test.clj"
@@ -226,9 +256,9 @@ defmodule CljCompilerTest do
     result = CljCompiler.Translator.translate(ast, TestModule, "test.clj")
 
     assert Enum.any?(result, fn
-      {:@, _, [{:max_size, _, [100]}]} -> true
-      _ -> false
-    end)
+             {:@, _, [{:max_size, _, [100]}]} -> true
+             _ -> false
+           end)
   end
 
   test "location metadata includes clj file path" do
@@ -242,10 +272,12 @@ defmodule CljCompilerTest do
     result = CljCompiler.Translator.translate(ast, TestModule, "test/example.clj")
 
     assert Enum.any?(result, fn
-      {:def, meta, [{:foo, _fn_meta, _params}, _body]} ->
-        Keyword.get(meta, :file) == 'test/example.clj'
-      _ -> false
-    end)
+             {:def, meta, [{:foo, _fn_meta, _params}, _body]} ->
+               Keyword.get(meta, :file) == ~c"test/example.clj"
+
+             _ ->
+               false
+           end)
   end
 
   test "uses module attribute in function" do
@@ -263,5 +295,4 @@ defmodule CljCompilerTest do
   test "computes using module attribute" do
     assert ClojureProject.Example.Attrs.compute_area(2) == 12.56
   end
-
 end

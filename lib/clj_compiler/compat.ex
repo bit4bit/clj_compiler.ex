@@ -1,5 +1,11 @@
-defmodule CljCompiler.Runtime do
-  @runtime_functions ~w(conj get assoc dissoc assoc-in)
+defmodule CljCompiler.Compat do
+  @runtime_functions ~w(conj get assoc dissoc assoc_in)
+
+  defmacro __using__(_opts \\ []) do
+    quote do
+      import unquote(__MODULE__)
+    end
+  end
 
   def runtime_functions, do: @runtime_functions
 

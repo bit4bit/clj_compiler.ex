@@ -1,4 +1,4 @@
-(ns example.math)
+(ns example.math (:use [CljCompiler.Compat]))
 
 (defn add [a b] (+ a b))
 

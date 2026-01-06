@@ -91,7 +91,8 @@ defmodule CljCompiler.Reader do
     tokenize_impl(rest, [{:brace_close, line, col} | acc], "", false, line, col + 1, line, col)
   end
 
-  defp tokenize_impl(<<char::utf8, rest::binary>>, acc, current, false, line, col, _tl, _tc) when char in [?\s, ?\n, ?\t, ?\r] do
+  defp tokenize_impl(<<char::utf8, rest::binary>>, acc, current, false, line, col, _tl, _tc)
+       when char in [?\s, ?\n, ?\t, ?\r] do
     acc = if current != "", do: [current | acc], else: acc
     new_line = if char == ?\n, do: line + 1, else: line
     new_col = if char == ?\n, do: 1, else: col + 1
@@ -101,16 +102,33 @@ defmodule CljCompiler.Reader do
   defp tokenize_impl(<<char::utf8, rest::binary>>, acc, current, false, line, col, tl, tc) do
     token_line = if current == "", do: line, else: tl
     token_col = if current == "", do: col, else: tc
-    tokenize_impl(rest, acc, current <> <<char::utf8>>, false, line, col + 1, token_line, token_col)
+
+    tokenize_impl(
+      rest,
+      acc,
+      current <> <<char::utf8>>,
+      false,
+      line,
+      col + 1,
+      token_line,
+      token_col
+    )
   end
 
   defp parse_tokens(tokens, file) do
     try do
       case parse_forms(tokens, [], file) do
-        {forms, []} -> forms
+        {forms, []} ->
+          forms
+
         {_forms, remaining} ->
           {line, col} = get_token_position(hd(remaining))
-          raise ParseError, reason: "Unexpected tokens remaining: #{inspect(remaining)}", line: line, column: col, file: file
+
+          raise ParseError,
+            reason: "Unexpected tokens remaining: #{inspect(remaining)}",
+            line: line,
+            column: col,
+            file: file
       end
     catch
       :error, %ParseError{} = e -> reraise e, __STACKTRACE__
@@ -137,10 +155,15 @@ defmodule CljCompiler.Reader do
     parse_forms(rest, [parse_atom(token) | acc], file)
   end
 
-  defp parse_list([{:paren_close, _line, _col} | rest], acc, _file, _open_line, _open_col), do: {Enum.reverse(acc), rest}
+  defp parse_list([{:paren_close, _line, _col} | rest], acc, _file, _open_line, _open_col),
+    do: {Enum.reverse(acc), rest}
 
   defp parse_list([], _acc, file, open_line, open_col) do
-    raise ParseError, reason: "Unclosed parenthesis", line: open_line, column: open_col, file: file
+    raise ParseError,
+      reason: "Unclosed parenthesis",
+      line: open_line,
+      column: open_col,
+      file: file
   end
 
   defp parse_list([{:paren_open, line, col} | rest], acc, file, _ol, _oc) do
@@ -162,7 +185,8 @@ defmodule CljCompiler.Reader do
     parse_list(rest, [parse_atom(token) | acc], file, open_line, open_col)
   end
 
-  defp parse_vector([{:bracket_close, _line, _col} | rest], acc, _file, _open_line, _open_col), do: {Enum.reverse(acc), rest}
+  defp parse_vector([{:bracket_close, _line, _col} | rest], acc, _file, _open_line, _open_col),
+    do: {Enum.reverse(acc), rest}
 
   defp parse_vector([], _acc, file, open_line, open_col) do
     raise ParseError, reason: "Unclosed bracket", line: open_line, column: open_col, file: file
@@ -187,7 +211,8 @@ defmodule CljCompiler.Reader do
     parse_vector(rest, [parse_atom(token) | acc], file, open_line, open_col)
   end
 
-  defp parse_map([{:brace_close, _line, _col} | rest], acc, _file, _open_line, _open_col), do: {Enum.reverse(acc), rest}
+  defp parse_map([{:brace_close, _line, _col} | rest], acc, _file, _open_line, _open_col),
+    do: {Enum.reverse(acc), rest}
 
   defp parse_map([], _acc, file, open_line, open_col) do
     raise ParseError, reason: "Unclosed brace", line: open_line, column: open_col, file: file

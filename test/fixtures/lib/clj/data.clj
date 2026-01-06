@@ -1,4 +1,4 @@
-(ns example.data)
+(ns example.data (:use [CljCompiler.Compat]))
 
 (defn create_person [name age] {:name name :age age})
 

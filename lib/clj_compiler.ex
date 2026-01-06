@@ -58,6 +58,7 @@ defmodule CljCompiler do
   defp generate_use_asts(use_clauses) do
     Enum.map(use_clauses, fn {module_name, opts} ->
       module_alias = Module.concat([module_name])
+
       if opts == [] do
         quote do
           use unquote(module_alias)
@@ -74,6 +75,7 @@ defmodule CljCompiler do
     case extract_ns_form(forms) do
       {{ns, use_clauses}, rest} ->
         {{ns, use_clauses}, rest}
+
       :error ->
         raise CompileError,
           file: file,
@@ -87,6 +89,7 @@ defmodule CljCompiler do
       [{:symbol, "ns"}, {:symbol, ns} | clauses] ->
         use_clauses = extract_use_clauses(clauses)
         {{ns, use_clauses}, rest}
+
       _ ->
         extract_ns_form(rest)
     end
@@ -97,6 +100,7 @@ defmodule CljCompiler do
       [{:symbol, "ns"}, {:symbol, ns} | clauses] ->
         use_clauses = extract_use_clauses(clauses)
         {{ns, use_clauses}, rest}
+
       _ ->
         extract_ns_form(rest)
     end
@@ -114,6 +118,7 @@ defmodule CljCompiler do
     Enum.flat_map(clauses, fn
       {:list, [{:keyword, :use} | modules]} ->
         Enum.map(modules, &parse_use_module/1)
+
       _ ->
         []
     end)
@@ -145,11 +150,10 @@ defmodule CljCompiler do
   defp translate_use_option_value({:number, n}), do: n
   defp translate_use_option_value({:string, s}), do: s
   defp translate_use_option_value({:keyword, k}), do: k
+
   defp translate_use_option_value({:vector, elements}) do
     Enum.map(elements, &translate_use_option_value/1)
   end
-
-
 
   defp namespace_to_module(ns, parent_module) do
     parts =

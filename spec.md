@@ -211,7 +211,6 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [ ] Reader macros
 - [ ] Destructuring in let
 - [ ] More comprehensive error messages for translation errors
-- [ ] Map access functions (get, assoc, dissoc)
 - [ ] Map destructuring
 
 ---
@@ -428,14 +427,14 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Test verifies error.line == 3 for error on line 3 of source
 - All 40 tests passing with actual line number tracking
 
-**Dynamic Arity Runtime Functions**: Support runtime functions with any number of arguments
-- Changed `translate_runtime_call/2` to use `apply/3` for dynamic arity resolution
-- Runtime functions no longer require explicit arity declaration in translator
-- Normalized runtime function names to replace hyphens with underscores (assoc-in → assoc_in)
-- Added `assoc-in` runtime function with 3 arguments for nested map updates
-- Function uses `put_in/3` with `Access.key/2` for path-based updates
-- Syntax: `(assoc-in m [k1 k2] v)` updates nested key path
-- All 41 tests passing with dynamic arity support
+**Compat Module with Import Support**: Allow unqualified runtime function access via use
+- Renamed `CljCompiler.Runtime` to `CljCompiler.Compat` with `__using__/1` that imports the module
+- Removed special runtime function handling from `translator.ex` (@runtime_functions and translate_runtime_call)
+- Runtime functions now available unqualified in clj code via `(:use [CljCompiler.Compat])`
+- Simplifies translator by relying on standard Elixir import resolution
+- Updated all existing test fixtures to include Compat use
+- Added test fixture and test for unqualified runtime function access
+- All tests passing with improved module organization
 
 
 
