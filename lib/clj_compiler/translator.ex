@@ -406,10 +406,13 @@ defmodule CljCompiler.Translator do
         &translate_expr(&1, parent_module, function_names, attr_names, param_names, file)
       )
 
+    original_fn_name = fn_name
+    fn_name = String.replace(fn_name, "-", "_")
+
     if String.contains?(fn_name, "/") do
       [module_name, function_name] = String.split(fn_name, "/")
       module_alias = Module.concat([module_name])
-      function_atom = String.to_atom(function_name)
+      function_atom = String.to_atom(String.replace(function_name, "-", "_"))
 
       quote do
         unquote(module_alias).unquote(function_atom)(unquote_splicing(translated_args))
@@ -419,6 +422,13 @@ defmodule CljCompiler.Translator do
 
       cond do
         fn_name in @built_in_ops ->
+          quote do
+            unquote(function_atom)(unquote_splicing(translated_args))
+          end
+
+        original_fn_name in @built_in_ops ->
+          function_atom = String.to_atom(original_fn_name)
+
           quote do
             unquote(function_atom)(unquote_splicing(translated_args))
           end
@@ -434,8 +444,8 @@ defmodule CljCompiler.Translator do
           end
       end
     end
-
-    defp translate_expr(_, _parent_module, _function_names, _attr_names, _param_names, _file),
-      do: nil
   end
+
+  defp translate_expr(_, _parent_module, _function_names, _attr_names, _param_names, _file),
+    do: nil
 end

@@ -19,27 +19,39 @@ defmodule CljCompiler.Compat do
     end
   end
 
-  def conj(collection, item) do
-    [item | collection]
+  defmacro conj(collection, item) do
+    quote do
+      [unquote(item) | unquote(collection)]
+    end
   end
 
-  def get(map, key) do
-    Map.get(map, key)
+  defmacro get(map, key) do
+    quote do
+      Map.get(unquote(map), unquote(key))
+    end
   end
 
-  def get(map, key, default) do
-    Map.get(map, key, default)
+  defmacro get(map, key, default) do
+    quote do
+      Map.get(unquote(map), unquote(key), unquote(default))
+    end
   end
 
-  def assoc(map, key, value) do
-    Map.put(map, key, value)
+  defmacro assoc(map, key, value) do
+    quote do
+      Map.put(unquote(map), unquote(key), unquote(value))
+    end
   end
 
-  def dissoc(map, keys) when is_list(keys) do
-    Enum.reduce(keys, map, fn key, acc -> Map.delete(acc, key) end)
+  defmacro dissoc(map, keys) do
+    quote do
+      Enum.reduce(unquote(keys), unquote(map), fn key, acc -> Map.delete(acc, key) end)
+    end
   end
 
-  def assoc_in(map, keys, value) when is_list(keys) do
-    put_in(map, Enum.map(keys, &Access.key(&1, %{})), value)
+  defmacro assoc_in(map, keys, value) do
+    quote do
+      put_in(unquote(map), unquote(keys), unquote(value))
+    end
   end
 end
