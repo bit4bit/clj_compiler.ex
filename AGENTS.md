@@ -60,6 +60,8 @@ Elixir library for writing modules using Clojure-like syntax, compiled at Elixir
 
 **STOP at each "Request Approval" step and wait for explicit human approval before continuing.**
 
+**Note on "Write Tests First":** Ensure tests are complete and runnable, including both the Clojure function definitions (e.g., in `.clj` fixtures) and the corresponding Elixir test assertions in the test file. Tests must be executable and expected to fail before implementation begins.
+
 ---
 
 ## Testing Rules
