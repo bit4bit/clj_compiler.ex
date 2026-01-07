@@ -459,6 +459,15 @@ defmodule CljCompiler.Translator do
        ) do
     binding_pairs = Enum.chunk_every(bindings, 2)
 
+    # Extract variable names from bindings to add to param_names
+    bound_var_names =
+      Enum.map(binding_pairs, fn [{:symbol, var_name}, _value_expr] ->
+        var_name
+      end)
+
+    # Add bound variables to param_names for body translation
+    new_param_names = param_names ++ bound_var_names
+
     binding_asts =
       Enum.map(binding_pairs, fn [{:symbol, var_name}, value_expr] ->
         var_ast = {String.to_atom(var_name), [], nil}
@@ -484,7 +493,7 @@ defmodule CljCompiler.Translator do
         body,
         parent_module,
         attr_names,
-        param_names,
+        new_param_names,
         local_functions,
         namespace_uses,
         file
@@ -495,6 +504,98 @@ defmodule CljCompiler.Translator do
          unquote_splicing(binding_asts)
          unquote(body_ast)
        end).()
+    end
+  end
+
+  defp translate_expr(
+         {:list, [{:symbol, "fn"}, {:vector, params} | body]},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    # Extract parameter names as symbols
+    param_symbols =
+      Enum.map(params, fn
+        {:symbol, name} -> String.to_atom(name)
+        _ -> raise "fn parameters must be symbols"
+      end)
+
+    # Create parameter AST nodes
+    param_asts = Enum.map(param_symbols, fn name -> {name, [], nil} end)
+
+    # Add parameters to the param_names context for body translation
+    new_param_names = param_names ++ Enum.map(param_symbols, &Atom.to_string/1)
+
+    # Translate the body (support single expression for now)
+    body_ast =
+      case body do
+        [single_expr] ->
+          translate_expr(
+            single_expr,
+            parent_module,
+            attr_names,
+            new_param_names,
+            local_functions,
+            namespace_uses,
+            file
+          )
+
+        [] ->
+          nil
+
+        _ ->
+          raise "fn body must have exactly one expression"
+      end
+
+    # Generate Elixir anonymous function AST
+    quote do
+      fn unquote_splicing(param_asts) -> unquote(body_ast) end
+    end
+  end
+
+  # Handle calling an expression directly, e.g., ((fn [x] (* x 2)) 5)
+  defp translate_expr(
+         {:list, [{:list, _} = fn_expr | args]},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    # Translate the function expression (could be a fn or any expression that returns a function)
+    fn_ast =
+      translate_expr(
+        fn_expr,
+        parent_module,
+        attr_names,
+        param_names,
+        local_functions,
+        namespace_uses,
+        file
+      )
+
+    # Translate arguments
+    translated_args =
+      Enum.map(
+        args,
+        &translate_expr(
+          &1,
+          parent_module,
+          attr_names,
+          param_names,
+          local_functions,
+          namespace_uses,
+          file
+        )
+      )
+
+    # Generate anonymous function call syntax
+    quote do
+      unquote(fn_ast).(unquote_splicing(translated_args))
     end
   end
 
@@ -578,6 +679,14 @@ defmodule CljCompiler.Translator do
       function_atom = String.to_atom(fn_name)
 
       cond do
+        # Check if calling a variable (could be an anonymous function)
+        fn_name in param_names or String.replace(fn_name, "-", "_") in param_names ->
+          var_ast = {function_atom, [], nil}
+
+          quote do
+            unquote(var_ast).(unquote_splicing(translated_args))
+          end
+
         fn_name in @built_in_ops ->
           quote do
             unquote(function_atom)(unquote_splicing(translated_args))
@@ -647,6 +756,14 @@ defmodule CljCompiler.Translator do
       function_atom = String.to_atom(fn_name)
 
       cond do
+        # Check if calling a variable (could be an anonymous function)
+        fn_name in param_names or String.replace(fn_name, "-", "_") in param_names ->
+          var_ast = {function_atom, [], nil}
+
+          quote do
+            unquote(var_ast).(unquote_splicing(translated_args))
+          end
+
         fn_name in @built_in_ops ->
           quote do
             unquote(function_atom)(unquote_splicing(translated_args))
@@ -713,7 +830,7 @@ defmodule CljCompiler.Translator do
       fn_name in @built_in_ops or normalized in @built_in_ops ->
         :ok
 
-      fn_name in ~w(str if let) ->
+      fn_name in ~w(str if let fn) ->
         :ok
 
       String.starts_with?(fn_name, ":") ->

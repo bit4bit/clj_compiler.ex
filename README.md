@@ -131,6 +131,42 @@ ClojureProject.My.Data.get_config()
 
 Keywords are automatically converted to Elixir atoms, and maps compile to native Elixir map syntax.
 
+### Anonymous Functions
+
+Anonymous functions can be created using the `fn` special form:
+
+```clojure
+(ns my.functions)
+
+(defn call_immediate [] ((fn [x] (* x 2)) 5))
+
+(defn make_adder [n] (fn [x] (+ x n)))
+
+(defn use_in_let []
+  (let [f (fn [x] (* x 2))]
+    (f 10)))
+```
+
+```elixir
+ClojureProject.My.Functions.call_immediate()
+# => 10
+
+adder = ClojureProject.My.Functions.make_adder(5)
+adder.(3)
+# => 8
+
+ClojureProject.My.Functions.use_in_let()
+# => 20
+```
+
+Anonymous functions:
+- Support zero, single, or multiple parameters: `(fn [a b c] ...)`
+- Can be immediately invoked: `((fn [x] (* x 2)) 5)`
+- Can be stored in let bindings: `(let [f (fn [x] ...)] (f 10))`
+- Can be returned from functions (closures): `(fn [x] (+ x n))` captures `n`
+- Work with higher-order functions: `(Enum/map lst (fn [x] (* x 2)))`
+- Support nested anonymous functions
+
 ## Running Tests
 
 ```sh
@@ -151,6 +187,7 @@ mix test
 - Numbers and arithmetic operations (`+`, `-`, `*`, `<`, `>`)
 - Conditional expressions with `if`
 - Local bindings with `let`
+- **Anonymous functions** - `(fn [args] body)` for creating function literals
 - Recursive function calls
 - Elixir module interop (`Enum/count`, etc.)
 - Vectors `[]`
@@ -196,10 +233,10 @@ This helps developers quickly identify and fix undefined function calls by sugge
 ## Roadmap
 
 - True `recur` tail-call optimization
-- Multiple function arities
-- Map access functions (get, assoc, dissoc)
+- Multiple function arities (for `defn` and `fn`)
 - Map destructuring
 - Destructuring in `let`
+- Anonymous function shorthand syntax `#(...)`
 - More operators and built-in functions
 
 ## Architecture

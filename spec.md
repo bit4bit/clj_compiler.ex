@@ -205,6 +205,11 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [x] dissoc function for map key removal (vector syntax)
 - [x] :use namespace declaration for Elixir module injection (with atom and keyword list options)
 - [x] Compile-time undefined function validation
+- [x] Anonymous functions with `fn` special form
+- [x] Immediate anonymous function invocation
+- [x] Anonymous functions in let bindings
+- [x] Closures (functions returning functions)
+- [x] Higher-order function support with anonymous functions
 
 ### Not Yet Implemented
 - [ ] `recur` as special tail-call form
@@ -225,6 +230,19 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 ---
 
 ## Change Log
+
+**Anonymous Function Support**: Added `fn` special form for creating anonymous functions
+- Implemented `(fn [args] body)` syntax for anonymous function literals
+- Support for immediate invocation: `((fn [x] (* x 2)) 5)`
+- Support for storing functions in let bindings: `(let [f (fn [x] ...)] (f 10))`
+- Support for returning functions from functions (closures): `(defn make-adder [n] (fn [x] (+ x n)))`
+- Support for passing anonymous functions to higher-order functions: `(Enum/map lst (fn [x] (* x 2)))`
+- Anonymous functions properly capture variables from outer scope
+- Support for zero, single, and multiple parameters
+- Support for nested anonymous functions
+- Enhanced let bindings to track bound variables for proper function call resolution
+- Enhanced function call translation to use anonymous function call syntax `f.(args)` when calling variables
+- Added 11 integration tests and 7 unit tests for anonymous function behavior
 
 **Initial Commit**: Walking skeleton with hello world function
 - Created basic project structure

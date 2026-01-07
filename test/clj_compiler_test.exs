@@ -598,4 +598,159 @@ defmodule CljCompilerTest do
       assert is_list(result)
     end
   end
+
+  test "anonymous function called immediately" do
+    assert ClojureProject.Example.Anonymous.call_immediate() == 10
+  end
+
+  test "anonymous function stored in let binding" do
+    assert ClojureProject.Example.Anonymous.use_in_let() == 20
+  end
+
+  test "anonymous function returned from function" do
+    adder = ClojureProject.Example.Anonymous.make_adder(5)
+    assert adder.(3) == 8
+  end
+
+  test "anonymous function called from returned function" do
+    assert ClojureProject.Example.Anonymous.call_returned_fn() == 8
+  end
+
+  test "anonymous function with no parameters" do
+    assert ClojureProject.Example.Anonymous.no_params() == 42
+  end
+
+  test "anonymous function with multiple parameters" do
+    assert ClojureProject.Example.Anonymous.multi_params() == 6
+  end
+
+  test "anonymous function captures outer variable" do
+    assert ClojureProject.Example.Anonymous.capture_variable(3) == 21
+  end
+
+  test "nested anonymous functions" do
+    assert ClojureProject.Example.Anonymous.nested_fns() == 8
+  end
+
+  test "anonymous function with complex body" do
+    assert ClojureProject.Example.Anonymous.complex_body() == 10
+  end
+
+  test "anonymous function passed to Enum.map" do
+    assert ClojureProject.Example.Anonymous.map_with_fn([1, 2, 3]) == [2, 4, 6]
+  end
+
+  test "anonymous function passed to Enum.filter" do
+    assert ClojureProject.Example.Anonymous.filter_with_fn([3, 6, 9, 4]) == [6, 9]
+  end
+
+  test "anonymous function passed to Enum.reduce" do
+    assert ClojureProject.Example.Anonymous.reduce_with_fn([1, 2, 3, 4]) == 10
+  end
+
+  describe "anonymous functions" do
+    test "creates and calls anonymous function immediately" do
+      source = """
+      (ns test.anon)
+
+      (defn test_immediate [] ((fn [x] (* x 2)) 5))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "stores anonymous function in let binding" do
+      source = """
+      (ns test.anon)
+
+      (defn test_let [] (let [f (fn [x] (* x 2))] (f 5)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "returns anonymous function from function" do
+      source = """
+      (ns test.anon)
+
+      (defn make_adder [n] (fn [x] (+ x n)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "anonymous function with no parameters" do
+      source = """
+      (ns test.anon)
+
+      (defn test_no_params [] ((fn [] 42)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "anonymous function with multiple parameters" do
+      source = """
+      (ns test.anon)
+
+      (defn test_multi [] ((fn [a b c] (+ a (+ b c))) 1 2 3))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "anonymous function captures outer variable" do
+      source = """
+      (ns test.anon)
+
+      (defn make_multiplier [n] (fn [x] (* x n)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "nested anonymous functions" do
+      source = """
+      (ns test.anon)
+
+      (defn test_nested [] ((fn [x] ((fn [y] (+ x y)) 3)) 5))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "anonymous function with complex body" do
+      source = """
+      (ns test.anon)
+
+      (defn test_complex [] ((fn [x] (if (> x 0) (* x 2) 0)) 5))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+  end
 end
