@@ -67,8 +67,131 @@ defmodule CljCompilerTest do
         CljCompiler.Reader.parse(source)
       end
 
-    assert error.line == 4
-    assert error.message =~ "Unclosed parenthesis"
+    assert error.line == 3
+    assert error.column == 1
+
+    assert error.message =~
+             "Missing closing parenthesis for opening at line 3, column 1"
+  end
+
+  describe "missing delimiter errors" do
+    test "missing closing parenthesis" do
+      source = "(sum (mul 2 2 )"
+
+      error =
+        assert_raise CljCompiler.Reader.ParseError, fn ->
+          CljCompiler.Reader.parse(source, "example.clj")
+        end
+
+      assert error.line == 1
+      assert error.column == 1
+
+      assert error.message =~
+               "Missing closing parenthesis for opening at line 1, column 1 in example.clj"
+    end
+
+    test "missing closing bracket prioritizes outermost" do
+      source = "[1 2 (sum 3 4"
+
+      error =
+        assert_raise CljCompiler.Reader.ParseError, fn ->
+          CljCompiler.Reader.parse(source, "example.clj")
+        end
+
+      assert error.line == 1
+      assert error.column == 1
+
+      assert error.message =~
+               "Missing closing bracket for opening at line 1, column 1 in example.clj"
+    end
+
+    test "missing closing brace" do
+      source = "{:key value"
+
+      error =
+        assert_raise CljCompiler.Reader.ParseError, fn ->
+          CljCompiler.Reader.parse(source, "example.clj")
+        end
+
+      assert error.line == 1
+      assert error.column == 1
+
+      assert error.message =~
+               "Missing closing brace for opening at line 1, column 1 in example.clj"
+    end
+
+    test "multiple nested missing prioritizes outermost" do
+      source = "(sum (mul 2 2"
+
+      error =
+        assert_raise CljCompiler.Reader.ParseError, fn ->
+          CljCompiler.Reader.parse(source, "example.clj")
+        end
+
+      assert error.line == 1
+      assert error.column == 1
+
+      assert error.message =~
+               "Missing closing parenthesis for opening at line 1, column 1 in example.clj"
+    end
+
+    test "EOF with no tokens after opening" do
+      source = "(sum"
+
+      error =
+        assert_raise CljCompiler.Reader.ParseError, fn ->
+          CljCompiler.Reader.parse(source, "example.clj")
+        end
+
+      assert error.line == 1
+      assert error.column == 1
+
+      assert error.message =~
+               "Missing closing parenthesis for opening at line 1, column 1 in example.clj"
+    end
+  end
+
+  describe "mismatched delimiter errors" do
+    test "mismatched closing bracket in parenthesis" do
+      source = "(sum 1 2 ]"
+
+      error =
+        assert_raise CljCompiler.Reader.ParseError, fn ->
+          CljCompiler.Reader.parse(source, "example.clj")
+        end
+
+      assert error.line == 1
+      assert error.column == 10
+
+      assert error.message =~
+               "Unexpected closing bracket; expected closing parenthesis for opening at line 1, column 1 in example.clj"
+    end
+  end
+
+  describe "extra delimiter errors" do
+    test "extra closing parenthesis" do
+      source = "(sum 1 2 ) )"
+
+      error =
+        assert_raise CljCompiler.Reader.ParseError, fn ->
+          CljCompiler.Reader.parse(source, "example.clj")
+        end
+
+      assert error.line == 1
+      assert error.column == 12
+
+      assert error.message =~
+               "Unexpected closing parenthesis; no matching opening found in example.clj"
+    end
+  end
+
+  describe "valid code" do
+    test "parses valid nested lists without errors" do
+      source = "(sum (mul 2 2))"
+
+      result = CljCompiler.Reader.parse(source, "example.clj")
+      assert is_list(result)
+    end
   end
 
   test "creates map with keyword keys" do
