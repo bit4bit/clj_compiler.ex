@@ -44,16 +44,17 @@ Elixir library for writing modules using Clojure-like syntax, compiled at Elixir
 
 ---
 
-## Coding Rules (TDD)
+## Implementation Coding Rules (TDD)
+
 
 1. **Write Tests First**: Based on acceptance criteria.
-2. **Request Approval**: Must get approval before implementing code.
+2. **Request Approval**: Ask the human reviewer for explicit approval before implementing any code.
 3. **Run Tests**: Verify they fail (red).
 4. **Write Minimal Code**: Implement the simplest code to pass tests (green).
 5. **Refactor**: Improve code while keeping tests green.
-6. **Request Approval**: Must get approval before proceeding.
+6. **Request Approval**: Ask the human reviewer for explicit approval before proceeding further.
 7. **Validate**: Ensure requirements are satisfied.
-8. **Request Approval**: Must get approval before finalizing.
+8. **Request Approval**: Ask the human reviewer for explicit approval before finalizing the implementation.
 
 ---
 
