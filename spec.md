@@ -204,13 +204,13 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - [x] assoc function for map updates
 - [x] dissoc function for map key removal (vector syntax)
 - [x] :use namespace declaration for Elixir module injection (with atom and keyword list options)
+- [x] Compile-time undefined function validation
 
 ### Not Yet Implemented
 - [ ] `recur` as special tail-call form
 - [ ] Multiple function arities
 - [ ] Reader macros
 - [ ] Destructuring in let
-- [ ] More comprehensive error messages for translation errors
 - [ ] Map destructuring
 
 ---
@@ -219,11 +219,8 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 
 1. Add true `recur` tail-call optimization
 2. Add support for multiple function arities
-3. Add keywords as atoms
-4. Add map literals
-5. Add destructuring in let bindings
-6. Add error reporting with line numbers
-7. Add more comprehensive operator support
+3. Add destructuring in let bindings
+4. Add more comprehensive operator support
 
 ---
 
@@ -256,10 +253,6 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 - Provide detailed error messages with available options and suggestions
 - Added 10 new tests covering error cases and pass cases
 - All 59 tests passing (49 existing + 10 new)
-- Implemented namespace to module name conversion
-- Modules now generated dynamically from namespace declarations
-- Single `use CljCompiler, dir: "path"` compiles all files in directory
-- All 5 tests passing with new architecture
 
 **Parent Module Nesting**: Namespace modules nested under calling module
 - Generated modules prefixed with parent module name
