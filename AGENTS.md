@@ -2,6 +2,28 @@
 
 Elixir library for writing modules using Clojure-like syntax, compiled at Elixir compile time using Elixir’s macro system.
 
+Double check the section: Implementation Coding Rules (TDD).
+Do not skip the section: Implementation Coding Rules (TDD).
+---
+
+## Implementation Coding Rules (TDD)
+
+**CRITICAL: Never skip approval steps! Each approval gate is mandatory.**
+
+1. **Write Tests First**: Based on acceptance criteria.
+2. **Request Approval #1**: Ask the human reviewer for explicit approval before implementing any code.
+3. **Run Tests**: Verify they fail (red).
+4. **Write Minimal Code**: Implement the simplest code to pass tests (green).
+5. **Run Tests**: Verify they pass (green).
+6. **Request Approval #2**: Ask the human reviewer for explicit approval before proceeding with refactoring, documentation, or any other steps.
+7. **Refactor** (if needed): Improve code while keeping tests green.
+8. **Validate**: Ensure requirements are satisfied.
+9. **Request Approval #3**: Ask the human reviewer for explicit approval before finalizing (documentation updates, changelog, etc.).
+
+**STOP at each "Request Approval" step and wait for explicit human approval before continuing.**
+
+**Note on "Write Tests First":** Ensure tests are complete and runnable, including both the Clojure function definitions (e.g., in `.clj` fixtures) and the corresponding Elixir test assertions in the test file. Tests must be executable and expected to fail before implementation begins.
+
 ---
 
 ## Build / Lint / Test Commands
@@ -41,26 +63,6 @@ Elixir library for writing modules using Clojure-like syntax, compiled at Elixir
 6. **Focused Commits**: One commit per feature, including its tests.
 7. **Code Review**: Share changes with reviewers for feedback.
 8. **Documentation Sync**: Update `README.md` for user-facing changes and `spec.md` for technical details.
-
----
-
-## Implementation Coding Rules (TDD)
-
-**CRITICAL: Never skip approval steps! Each approval gate is mandatory.**
-
-1. **Write Tests First**: Based on acceptance criteria.
-2. **Request Approval #1**: Ask the human reviewer for explicit approval before implementing any code.
-3. **Run Tests**: Verify they fail (red).
-4. **Write Minimal Code**: Implement the simplest code to pass tests (green).
-5. **Run Tests**: Verify they pass (green).
-6. **Request Approval #2**: Ask the human reviewer for explicit approval before proceeding with refactoring, documentation, or any other steps.
-7. **Refactor** (if needed): Improve code while keeping tests green.
-8. **Validate**: Ensure requirements are satisfied.
-9. **Request Approval #3**: Ask the human reviewer for explicit approval before finalizing (documentation updates, changelog, etc.).
-
-**STOP at each "Request Approval" step and wait for explicit human approval before continuing.**
-
-**Note on "Write Tests First":** Ensure tests are complete and runnable, including both the Clojure function definitions (e.g., in `.clj` fixtures) and the corresponding Elixir test assertions in the test file. Tests must be executable and expected to fail before implementation begins.
 
 ---
 
