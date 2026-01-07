@@ -356,6 +356,7 @@ defmodule CljCompilerTest do
       assert_raise CompileError, fn ->
         CljCompiler.Translator.translate(
           CljCompiler.Reader.parse(source, "test.clj"),
+          [],
           TestModule,
           "test.clj"
         )
@@ -376,7 +377,7 @@ defmodule CljCompilerTest do
     """
 
     ast = CljCompiler.Reader.parse(source, "test.clj")
-    result = CljCompiler.Translator.translate(ast, TestModule, "test.clj")
+    result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
     assert Enum.any?(result, fn
              {:@, _, [{:max_size, _, [100]}]} -> true
@@ -392,7 +393,7 @@ defmodule CljCompilerTest do
     """
 
     ast = CljCompiler.Reader.parse(source, "test/example.clj")
-    result = CljCompiler.Translator.translate(ast, TestModule, "test/example.clj")
+    result = CljCompiler.Translator.translate(ast, [], TestModule, "test/example.clj")
 
     assert Enum.any?(result, fn
              {:def, meta, [{:foo, _fn_meta, _params}, _body]} ->
@@ -417,5 +418,184 @@ defmodule CljCompilerTest do
 
   test "computes using module attribute" do
     assert ClojureProject.Example.Attrs.compute_area(2) == 12.56
+  end
+
+  describe "undefined function validation" do
+    test "raises error for undefined function" do
+      source = """
+      (ns test.undefined)
+
+      (defn calculate [x] (undefined_fn x))
+      """
+
+      error =
+        assert_raise CompileError, fn ->
+          CljCompiler.Translator.translate(
+            CljCompiler.Reader.parse(source, "test.clj"),
+            [],
+            TestModule,
+            "test.clj"
+          )
+        end
+
+      assert error.description =~ "Undefined function: undefined_fn"
+      assert error.file == "test.clj"
+      assert error.line == 1
+    end
+
+    test "allows calling locally defined function" do
+      source = """
+      (ns test.local)
+
+      (defn helper [x] (* x 2))
+
+      (defn calculate [x] (helper x))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "raises error for unqualified parent function call" do
+      source = """
+      (ns test.parent)
+
+      (defn calculate [x] (do_sum x 1))
+      """
+
+      error =
+        assert_raise CompileError, fn ->
+          CljCompiler.Translator.translate(
+            CljCompiler.Reader.parse(source, "test.clj"),
+            [],
+            TestModule,
+            "test.clj"
+          )
+        end
+
+      assert error.description =~ "Undefined function: do_sum"
+      assert error.description =~ "Parent module: qualify with TestModule/do_sum"
+    end
+
+    test "allows qualified parent function call" do
+      source = """
+      (ns test.qualified)
+
+      (defn calculate [x] (TestModule/do_sum x 1))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "allows Compat functions with :use declaration" do
+      source = """
+      (ns test.compat (:use [CljCompiler.Compat]))
+
+      (defn process [lst] (conj lst 1))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      result =
+        CljCompiler.Translator.translate(
+          ast,
+          [{"CljCompiler.Compat", []}],
+          TestModule,
+          "test.clj"
+        )
+
+      assert is_list(result)
+    end
+
+    test "raises error for Compat functions without :use" do
+      source = """
+      (ns test.no_compat)
+
+      (defn process [lst] (conj lst 1))
+      """
+
+      error =
+        assert_raise CompileError, fn ->
+          CljCompiler.Translator.translate(
+            CljCompiler.Reader.parse(source, "test.clj"),
+            [],
+            TestModule,
+            "test.clj"
+          )
+        end
+
+      assert error.description =~ "Undefined function: conj"
+    end
+
+    test "validates function calls in nested expressions" do
+      source = """
+      (ns test.nested)
+
+      (defn calculate [x] (+ (undefined_fn x) 1))
+      """
+
+      error =
+        assert_raise CompileError, fn ->
+          CljCompiler.Translator.translate(
+            CljCompiler.Reader.parse(source, "test.clj"),
+            [],
+            TestModule,
+            "test.clj"
+          )
+        end
+
+      assert error.description =~ "Undefined function: undefined_fn"
+    end
+
+    test "validates function calls in let binding values" do
+      source = """
+      (ns test.let)
+
+      (defn calculate [x] (let [y (undefined_fn x)] y))
+      """
+
+      error =
+        assert_raise CompileError, fn ->
+          CljCompiler.Translator.translate(
+            CljCompiler.Reader.parse(source, "test.clj"),
+            [],
+            TestModule,
+            "test.clj"
+          )
+        end
+
+      assert error.description =~ "Undefined function: undefined_fn"
+    end
+
+    test "allows built-in operators without validation" do
+      source = """
+      (ns test.operators)
+
+      (defn calculate [x] (+ x 1))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "allows Elixir module calls without validation" do
+      source = """
+      (ns test.elixir)
+
+      (defn calculate [lst] (Enum/count lst))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
   end
 end

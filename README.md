@@ -174,6 +174,25 @@ Common errors detected:
 - Missing namespace declarations
 - Invalid syntax with exact location information
 
+### Undefined Function Errors
+
+The compiler validates function calls at compile time and provides helpful error messages for undefined functions:
+
+```
+** (CompileError) example/collections.clj:4: Undefined function: conj
+
+Available options:
+- Local functions: add_to_list
+- Parent module: qualify with MyApp/conj
+- Imported modules: (none)
+- Elixir interop: Module/function (e.g., Enum/map)
+- Built-in operators: +, -, *, /, <, >, etc.
+
+Hint: Did you forget (:use [CljCompiler.Compat]) in your namespace?
+```
+
+This helps developers quickly identify and fix undefined function calls by suggesting available options.
+
 ## Roadmap
 
 - True `recur` tail-call optimization

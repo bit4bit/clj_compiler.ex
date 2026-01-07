@@ -248,6 +248,14 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 **Namespace Architecture**: Directory-based compilation
 - Changed from per-module `.clj` files to directory scanning
 - Added `(ns ...)` declaration support
+
+**Compile-Time Undefined Function Validation**: Added validation to detect undefined function calls at compile time
+- Extract local function names from `defn` forms
+- Extract namespace uses from `ns` declarations
+- Validate function calls against local functions, parameters, attributes, built-in operators, special forms, Elixir interop, and CljCompiler.Compat functions
+- Provide detailed error messages with available options and suggestions
+- Added 10 new tests covering error cases and pass cases
+- All 59 tests passing (49 existing + 10 new)
 - Implemented namespace to module name conversion
 - Modules now generated dynamically from namespace declarations
 - Single `use CljCompiler, dir: "path"` compiles all files in directory
