@@ -246,6 +246,10 @@ defmodule CljCompilerTest do
     assert ClojureProject.Example.Collections.conj_empty(5) == [5]
   end
 
+  test "map applies function to each element" do
+    assert ClojureProject.Example.Collections.map_inc([1, 2, 3]) == [2, 3, 4]
+  end
+
   test "function receives map as argument" do
     person = %{name: "Alice", age: 30}
     assert ClojureProject.Example.Data.get_name(person) == "Alice"

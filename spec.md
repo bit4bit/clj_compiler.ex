@@ -231,6 +231,10 @@ With `(ns example.core)` creates `MyApp.Example.Core`
 
 ## Change Log
 
+**Compat Functions**: Added `map` and `inc` functions to CljCompiler.Compat
+- `inc` function: increments a number by 1
+- `map` function: applies a function to each element of a collection and returns a list
+
 **Anonymous Function Support**: Added `fn` special form for creating anonymous functions
 - Implemented `(fn [args] body)` syntax for anonymous function literals
 - Support for immediate invocation: `((fn [x] (* x 2)) 5)`

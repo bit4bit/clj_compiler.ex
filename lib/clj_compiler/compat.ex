@@ -32,4 +32,12 @@ defmodule CljCompiler.Compat do
   def assoc_in(map, keys, value) do
     put_in(map, keys, value)
   end
+
+  def inc(x) do
+    x + 1
+  end
+
+  def map(fun, coll) do
+    Enum.map(coll, fun)
+  end
 end
