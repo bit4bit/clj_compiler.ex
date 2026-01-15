@@ -757,4 +757,240 @@ defmodule CljCompilerTest do
       assert is_list(result)
     end
   end
+
+  describe "try/catch/finally parsing" do
+    test "parses simple try form" do
+      source = """
+      (ns test.try)
+
+      (defn test_try [] (try (+ 1 2)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert [
+               {:list, [{:symbol, "ns"}, {:symbol, "test.try"}], _},
+               {:list,
+                [
+                  {:symbol, "defn"},
+                  {:symbol, "test_try"},
+                  {:vector, []},
+                  {:list,
+                   [{:symbol, "try"}, {:list, [{:symbol, "+"}, {:number, 1}, {:number, 2}]}]}
+                ], _}
+             ] = ast
+    end
+
+    test "parses try with catch" do
+      source = """
+      (ns test.try)
+
+      (defn test_catch []
+        (try
+          (+ 1 2)
+          (catch RuntimeException e "error")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert [
+               {:list, [{:symbol, "ns"}, {:symbol, "test.try"}], _},
+               {:list,
+                [
+                  {:symbol, "defn"},
+                  {:symbol, "test_catch"},
+                  {:vector, []},
+                  {:list,
+                   [
+                     {:symbol, "try"},
+                     {:list, [{:symbol, "+"}, {:number, 1}, {:number, 2}]},
+                     {:list,
+                      [
+                        {:symbol, "catch"},
+                        {:symbol, "RuntimeException"},
+                        {:symbol, "e"},
+                        {:string, "error"}
+                      ]}
+                   ]}
+                ], _}
+             ] = ast
+    end
+
+    test "parses try with finally" do
+      source = """
+      (ns test.try)
+
+      (defn test_finally []
+        (try
+          (+ 1 2)
+          (finally nil)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert [
+               {:list, [{:symbol, "ns"}, {:symbol, "test.try"}], _},
+               {:list,
+                [
+                  {:symbol, "defn"},
+                  {:symbol, "test_finally"},
+                  {:vector, []},
+                  {:list,
+                   [
+                     {:symbol, "try"},
+                     {:list, [{:symbol, "+"}, {:number, 1}, {:number, 2}]},
+                     {:list, [{:symbol, "finally"}, {:symbol, "nil"}]}
+                   ]}
+                ], _}
+             ] = ast
+    end
+
+    test "parses try with multiple catch blocks" do
+      source = """
+      (ns test.try)
+
+      (defn test_multi_catch []
+        (try
+          (+ 1 2)
+          (catch RuntimeException e "runtime")
+          (catch ArgumentError e "argument")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert [
+               {:list, [{:symbol, "ns"}, {:symbol, "test.try"}], _},
+               {:list,
+                [
+                  {:symbol, "defn"},
+                  {:symbol, "test_multi_catch"},
+                  {:vector, []},
+                  {:list,
+                   [
+                     {:symbol, "try"},
+                     {:list, [{:symbol, "+"}, {:number, 1}, {:number, 2}]},
+                     {:list,
+                      [
+                        {:symbol, "catch"},
+                        {:symbol, "RuntimeException"},
+                        {:symbol, "e"},
+                        {:string, "runtime"}
+                      ]},
+                     {:list,
+                      [
+                        {:symbol, "catch"},
+                        {:symbol, "ArgumentError"},
+                        {:symbol, "e"},
+                        {:string, "argument"}
+                      ]}
+                   ]}
+                ], _}
+             ] = ast
+    end
+  end
+
+  describe "try/catch/finally translation" do
+    test "translates simple try" do
+      source = """
+      (ns test.try)
+
+      (defn test_try [] (try (+ 1 2)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "translates try with catch" do
+      source = """
+      (ns test.try)
+
+      (defn test_catch []
+        (try
+          (+ 1 2)
+          (catch RuntimeException e "error")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "translates try with finally" do
+      source = """
+      (ns test.try)
+
+      (defn test_finally []
+        (try
+          (+ 1 2)
+          (finally nil)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "translates try with catch and finally" do
+      source = """
+      (ns test.try)
+
+      (defn test_full []
+        (try
+          (+ 1 2)
+          (catch RuntimeException e "error")
+          (finally nil)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "translates try with multiple catch blocks" do
+      source = """
+      (ns test.try)
+
+      (defn test_multi_catch []
+        (try
+          (+ 1 2)
+          (catch RuntimeException e "runtime")
+          (catch ArgumentError e "argument")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+  end
+
+  describe "try/catch/finally integration" do
+    test "safe_divide returns result on success" do
+      assert ClojureProject.Example.ExceptionHandling.safe_divide(10, 2) == 12
+    end
+
+    test "safe_divide catches division by zero" do
+      # No exception is thrown, so it returns the sum
+      assert ClojureProject.Example.ExceptionHandling.safe_divide(10, 0) == 10
+    end
+
+    test "safe_divide_with_finally returns result on success" do
+      assert ClojureProject.Example.ExceptionHandling.safe_divide_with_finally(10, 2) == 12
+    end
+
+    test "safe_divide_with_finally catches division by zero" do
+      # No exception is thrown, so it returns the sum
+      assert ClojureProject.Example.ExceptionHandling.safe_divide_with_finally(10, 0) == 10
+    end
+
+    test "simple_try returns success" do
+      assert ClojureProject.Example.ExceptionHandling.simple_try("ok") == "success"
+    end
+  end
 end

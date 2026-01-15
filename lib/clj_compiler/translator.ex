@@ -280,6 +280,17 @@ defmodule CljCompiler.Translator do
        do: false
 
   defp translate_expr(
+         {:symbol, "nil"},
+         _parent_module,
+         _attr_names,
+         _param_names,
+         _local_functions,
+         _namespace_uses,
+         _file
+       ),
+       do: nil
+
+  defp translate_expr(
          {:symbol, name},
          _parent_module,
          attr_names,
@@ -599,6 +610,183 @@ defmodule CljCompiler.Translator do
     end
   end
 
+  # Handle try/catch/finally forms
+  # Syntax: (try body (catch ExceptionType var handler) ... (finally cleanup))
+  defp translate_expr(
+         {:list, [{:symbol, "try"} | rest]},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    {body, catch_blocks, finally_block} = parse_try_form(rest)
+
+    body_ast =
+      translate_expr(
+        body,
+        parent_module,
+        attr_names,
+        param_names,
+        local_functions,
+        namespace_uses,
+        file
+      )
+
+    rescue_clauses =
+      Enum.map(catch_blocks, fn {exception_type, var_name, handler} ->
+        exception_module =
+          case exception_type do
+            {:symbol, type_name} ->
+              # Map Clojure exception names to Elixir exceptions
+              case type_name do
+                "Exception" -> Exception
+                "RuntimeException" -> RuntimeError
+                "ArgumentError" -> ArgumentError
+                "KeyError" -> KeyError
+                _ -> Module.concat([type_name])
+              end
+
+            _ ->
+              Exception
+          end
+
+        var_atom = String.to_atom(var_name)
+
+        handler_ast =
+          translate_expr(
+            handler,
+            parent_module,
+            attr_names,
+            param_names ++ [var_name],
+            local_functions,
+            namespace_uses,
+            file
+          )
+
+        # Generate: var_name in exception_module -> handler_ast
+        {:->, [],
+         [
+           [
+             {:in, [],
+              [
+                {var_atom, [], nil},
+                exception_module
+              ]}
+           ],
+           handler_ast
+         ]}
+      end)
+
+    after_block =
+      case finally_block do
+        nil ->
+          nil
+
+        finally_expr ->
+          translate_expr(
+            finally_expr,
+            parent_module,
+            attr_names,
+            param_names,
+            local_functions,
+            namespace_uses,
+            file
+          )
+      end
+
+    if Enum.empty?(rescue_clauses) and is_nil(after_block) do
+      # Just a try with no catch or finally - return the body
+      body_ast
+    else
+      # Build the try AST with proper structure
+      # The try block needs: {:try, [], [[do: body, rescue: [...], after: ...]]}
+      try_opts = [do: body_ast]
+
+      try_opts =
+        if not Enum.empty?(rescue_clauses) do
+          try_opts ++ [rescue: rescue_clauses]
+        else
+          try_opts
+        end
+
+      try_opts =
+        if not is_nil(after_block) do
+          try_opts ++ [after: after_block]
+        else
+          try_opts
+        end
+
+      {:try, [], [try_opts]}
+    end
+  end
+
+  # Helper function to parse try form structure
+  defp parse_try_form(forms) do
+    {body, rest} = extract_try_body(forms)
+    {catch_blocks, finally_block} = extract_catch_and_finally(rest)
+    {body, catch_blocks, finally_block}
+  end
+
+  # Extract the body (first form that's not a catch or finally)
+  defp extract_try_body([{:list, [{:symbol, "catch"} | _]} | _]) do
+    raise "try body is required before catch blocks"
+  end
+
+  defp extract_try_body([{:list, [{:symbol, "finally"} | _]} | _]) do
+    raise "try body is required before finally block"
+  end
+
+  defp extract_try_body([body | rest]) do
+    {body, rest}
+  end
+
+  defp extract_try_body([]) do
+    raise "try requires at least a body"
+  end
+
+  # Extract catch blocks and finally block
+  defp extract_catch_and_finally(forms) do
+    extract_catch_and_finally_impl(forms, [], nil)
+  end
+
+  defp extract_catch_and_finally_impl([], catch_blocks, finally_block) do
+    {Enum.reverse(catch_blocks), finally_block}
+  end
+
+  defp extract_catch_and_finally_impl(
+         [{:list, [{:symbol, "catch"}, exception_type, {:symbol, var_name}, handler]} | rest],
+         catch_blocks,
+         finally_block
+       ) do
+    extract_catch_and_finally_impl(
+      rest,
+      [{exception_type, var_name, handler} | catch_blocks],
+      finally_block
+    )
+  end
+
+  defp extract_catch_and_finally_impl(
+         [{:list, [{:symbol, "finally"} | finally_body]} | rest],
+         catch_blocks,
+         _finally_block
+       ) do
+    # Extract the finally expression (should be a single form)
+    finally_expr =
+      case finally_body do
+        [expr] -> expr
+        [] -> nil
+        _ -> {:list, [{:symbol, "do"} | finally_body]}
+      end
+
+    extract_catch_and_finally_impl(rest, catch_blocks, finally_expr)
+  end
+
+  defp extract_catch_and_finally_impl([invalid | _], _catch_blocks, _finally_block) do
+    raise "Invalid form in try: expected catch or finally, got #{inspect(invalid)}"
+  end
+
   defp translate_expr(
          {:list, [{:keyword, keyword} | args]},
          parent_module,
@@ -688,15 +876,21 @@ defmodule CljCompiler.Translator do
           end
 
         fn_name in @built_in_ops ->
+          # Map Clojure's = to Elixir's ==
+          actual_fn_name = if fn_name == "=", do: "==", else: fn_name
+          actual_function_atom = String.to_atom(actual_fn_name)
+
           quote do
-            unquote(function_atom)(unquote_splicing(translated_args))
+            unquote(actual_function_atom)(unquote_splicing(translated_args))
           end
 
         original_fn_name in @built_in_ops ->
-          function_atom = String.to_atom(original_fn_name)
+          # Map Clojure's = to Elixir's ==
+          actual_fn_name = if original_fn_name == "=", do: "==", else: original_fn_name
+          actual_function_atom = String.to_atom(actual_fn_name)
 
           quote do
-            unquote(function_atom)(unquote_splicing(translated_args))
+            unquote(actual_function_atom)(unquote_splicing(translated_args))
           end
 
         true ->
@@ -765,15 +959,21 @@ defmodule CljCompiler.Translator do
           end
 
         fn_name in @built_in_ops ->
+          # Map Clojure's = to Elixir's ==
+          actual_fn_name = if fn_name == "=", do: "==", else: fn_name
+          actual_function_atom = String.to_atom(actual_fn_name)
+
           quote do
-            unquote(function_atom)(unquote_splicing(translated_args))
+            unquote(actual_function_atom)(unquote_splicing(translated_args))
           end
 
         original_fn_name in @built_in_ops ->
-          function_atom = String.to_atom(original_fn_name)
+          # Map Clojure's = to Elixir's ==
+          actual_fn_name = if original_fn_name == "=", do: "==", else: original_fn_name
+          actual_function_atom = String.to_atom(actual_fn_name)
 
           quote do
-            unquote(function_atom)(unquote_splicing(translated_args))
+            unquote(actual_function_atom)(unquote_splicing(translated_args))
           end
 
         true ->
