@@ -1,5 +1,5 @@
 defmodule CljCompiler.Translator do
-  @built_in_ops ~w(+ - * / < > <= >= = == != and or not)
+  @built_in_ops ~w(+ - * / < > <= >= = == != and or not try catch finally throw)
 
   def translate(forms, use_clauses, parent_module, file) do
     attr_names = extract_attr_names(forms)
@@ -558,6 +558,64 @@ defmodule CljCompiler.Translator do
 
   # Handle calling an expression directly, e.g., ((fn [x] (* x 2)) 5)
   defp translate_expr(
+         {:list, [{:symbol, "try"} | rest]},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    {try_body, catch_clauses, finally_clause} = parse_try_clauses(rest)
+
+    try_ast =
+      translate_expr(
+        try_body,
+        parent_module,
+        attr_names,
+        param_names,
+        local_functions,
+        namespace_uses,
+        file
+      )
+
+    rescue_clauses =
+      Enum.map(catch_clauses, fn {exception_type, exception_var, catch_body} ->
+        exception_module = convert_exception_type(exception_type)
+
+        catch_ast =
+          translate_expr(
+            catch_body,
+            parent_module,
+            attr_names,
+            param_names ++ [exception_var],
+            local_functions,
+            namespace_uses,
+            file
+          )
+
+        {exception_module, exception_var, catch_ast}
+      end)
+
+    after_ast =
+      if finally_clause do
+        translate_expr(
+          finally_clause,
+          parent_module,
+          attr_names,
+          param_names,
+          local_functions,
+          namespace_uses,
+          file
+        )
+      else
+        nil
+      end
+
+    build_try_ast(try_ast, rescue_clauses, after_ast)
+  end
+
+  defp translate_expr(
          {:list, [{:list, _} = fn_expr | args]},
          parent_module,
          attr_names,
@@ -830,7 +888,7 @@ defmodule CljCompiler.Translator do
       fn_name in @built_in_ops or normalized in @built_in_ops ->
         :ok
 
-      fn_name in ~w(str if let fn) ->
+      fn_name in ~w(str if let fn try catch finally throw) ->
         :ok
 
       String.starts_with?(fn_name, ":") ->
@@ -913,4 +971,118 @@ defmodule CljCompiler.Translator do
       list -> Enum.join(list, ", ")
     end
   end
+
+  defp parse_try_clauses([try_body | rest]) do
+    {catch_clauses, finally_clause} = parse_catch_and_finally(rest)
+    {try_body, catch_clauses, finally_clause}
+  end
+
+  defp parse_catch_and_finally(forms) do
+    {catch_clauses, remaining} = parse_catch_clauses(forms, [])
+    {finally_clause, _} = parse_finally_clause(remaining)
+    {catch_clauses, finally_clause}
+  end
+
+  defp parse_catch_clauses(
+         [
+           {:list,
+            [{:symbol, "catch"}, {:symbol, exception_type}, {:symbol, exception_var} | catch_body]}
+           | rest
+         ],
+         acc
+       ) do
+    catch_body_expr =
+      case catch_body do
+        [single] -> single
+        [] -> nil
+        _ -> {:list, catch_body}
+      end
+
+    parse_catch_clauses(rest, [{exception_type, exception_var, catch_body_expr} | acc])
+  end
+
+  defp parse_catch_clauses(remaining, acc) do
+    {Enum.reverse(acc), remaining}
+  end
+
+  defp parse_finally_clause([{:list, [{:symbol, "finally"} | finally_body]} | rest]) do
+    finally_expr =
+      case finally_body do
+        [single] -> single
+        [] -> nil
+        _ -> {:list, finally_body}
+      end
+
+    {finally_expr, rest}
+  end
+
+  defp parse_finally_clause(remaining) do
+    {nil, remaining}
+  end
+
+  defp build_try_ast(try_ast, [], nil) do
+    quote do
+      try do
+        unquote(try_ast)
+      end
+    end
+  end
+
+  defp build_try_ast(try_ast, rescue_clauses, nil) do
+    rescue_block = build_rescue_block(rescue_clauses)
+
+    quote do
+      try do
+        unquote(try_ast)
+      rescue
+        unquote(rescue_block)
+      end
+    end
+  end
+
+  defp build_try_ast(try_ast, [], after_ast) do
+    quote do
+      try do
+        unquote(try_ast)
+      after
+        unquote(after_ast)
+      end
+    end
+  end
+
+  defp build_try_ast(try_ast, rescue_clauses, after_ast) do
+    rescue_block = build_rescue_block(rescue_clauses)
+
+    quote do
+      try do
+        unquote(try_ast)
+      rescue
+        unquote(rescue_block)
+      after
+        unquote(after_ast)
+      end
+    end
+  end
+
+  defp build_rescue_block(clauses) do
+    Enum.map(clauses, fn {exception_type, exception_var, catch_body} ->
+      var_ast = {String.to_atom(exception_var), [], nil}
+
+      {:->, [], [[{:in, [], [var_ast, exception_type]}], catch_body]}
+    end)
+  end
+
+  defp convert_exception_type("ArithmeticException"), do: ArithmeticError
+  defp convert_exception_type("RuntimeException"), do: RuntimeError
+  defp convert_exception_type("Exception"), do: Exception
+  defp convert_exception_type("ArgumentError"), do: ArgumentError
+  defp convert_exception_type("RuntimeError"), do: RuntimeError
+  defp convert_exception_type("UndefinedFunctionError"), do: UndefinedFunctionError
+  defp convert_exception_type("FunctionClauseError"), do: FunctionClauseError
+  defp convert_exception_type("MatchError"), do: MatchError
+  defp convert_exception_type("CaseClauseError"), do: CaseClauseError
+  defp convert_exception_type("BadArityError"), do: BadArityError
+  defp convert_exception_type("BadFunctionError"), do: BadFunctionError
+  defp convert_exception_type("Protocol.UndefinedError"), do: Protocol.UndefinedError
+  defp convert_exception_type(other), do: Module.concat([other])
 end

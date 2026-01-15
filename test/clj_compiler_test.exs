@@ -757,4 +757,198 @@ defmodule CljCompilerTest do
       assert is_list(result)
     end
   end
+
+  describe "try/catch/finally" do
+    test "parses basic try/catch" do
+      source = """
+      (ns test.exception)
+
+      (defn safe_divide [a b]
+        (try
+          (/ a b)
+          (catch ArithmeticException e "Division by zero")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert [
+               {:list, [{:symbol, "ns"}, {:symbol, "test.exception"}], _},
+               {:list,
+                [
+                  {:symbol, "defn"},
+                  {:symbol, "safe_divide"},
+                  {:vector, [{:symbol, "a"}, {:symbol, "b"}]},
+                  {:list, [{:symbol, "try"}, _, {:list, [{:symbol, "catch"}, _, _, _]}]}
+                ], _}
+             ] = ast
+    end
+
+    test "parses try with multiple catch blocks" do
+      source = """
+      (ns test.exception)
+
+      (defn multi_catch [value]
+        (try
+          (/ 10 value)
+          (catch ArithmeticException e "Arithmetic error")
+          (catch Exception e "General error")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert is_list(ast)
+      assert length(ast) == 2
+    end
+
+    test "parses try with finally" do
+      source = """
+      (ns test.exception)
+
+      (defn with_finally [resource]
+        (try
+          (str "Using resource: " resource)
+          (finally "Resource cleaned up")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert is_list(ast)
+      assert length(ast) == 2
+    end
+
+    test "parses complete try/catch/finally" do
+      source = """
+      (ns test.exception)
+
+      (defn complete_try [value]
+        (try
+          (/ 10 value)
+          (catch ArithmeticException e (str "Caught: " e))
+          (finally "Cleanup complete")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert is_list(ast)
+      assert length(ast) == 2
+    end
+
+    test "parses nested try blocks" do
+      source = """
+      (ns test.exception)
+
+      (defn nested_try [a b]
+        (try
+          (try
+            (/ a b)
+            (catch ArithmeticException e "Inner catch"))
+          (catch Exception e "Outer catch")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert is_list(ast)
+      assert length(ast) == 2
+    end
+
+    test "translates basic try/catch to Elixir AST" do
+      source = """
+      (ns test.exception)
+
+      (defn safe_divide [a b]
+        (try
+          (/ a b)
+          (catch ArithmeticException e "Division by zero")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "translates try with multiple catch blocks" do
+      source = """
+      (ns test.exception)
+
+      (defn multi_catch [value]
+        (try
+          (/ 10 value)
+          (catch ArithmeticException e "Arithmetic error")
+          (catch Exception e "General error")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "translates try with finally" do
+      source = """
+      (ns test.exception)
+
+      (defn with_finally [resource]
+        (try
+          (str "Using resource: " resource)
+          (finally "Resource cleaned up")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "translates complete try/catch/finally" do
+      source = """
+      (ns test.exception)
+
+      (defn complete_try [value]
+        (try
+          (/ 10 value)
+          (catch ArithmeticException e (str "Caught: " e))
+          (finally "Cleanup complete")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "translates nested try blocks" do
+      source = """
+      (ns test.exception)
+
+      (defn nested_try [a b]
+        (try
+          (try
+            (/ a b)
+            (catch ArithmeticException e "Inner catch"))
+          (catch Exception e "Outer catch")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "recognizes throw as valid function" do
+      source = """
+      (ns test.exception)
+
+      (defn test_throw []
+        (try
+          (throw "error")
+          (catch Exception e "caught")))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+  end
 end
