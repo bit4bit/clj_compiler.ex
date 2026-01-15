@@ -15,5 +15,8 @@ erl_crash.dump
 *~
 *.swp
 *.swo
+.lsp
+.clj-kondo
+.agent-shell
 
 mix.lock
