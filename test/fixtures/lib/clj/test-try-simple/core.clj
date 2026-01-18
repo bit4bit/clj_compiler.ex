@@ -1,4 +1,4 @@
-(ns test.try-simple)
+(ns test-try-simple.core)
 
 (defn basic-try []
   (try
@@ -12,8 +12,8 @@
     (finally
       :cleanup)))
 
-(defn safe-divide [a b]
-  (try
-    (/ a b)
-    (catch ArithmeticException e
-      :infinity)))
+ (defn safe-divide [a b]
+   (try
+     (/ a b)
+     (catch ArithmeticError e
+       :infinity)))

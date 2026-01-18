@@ -1,0 +1,631 @@
+19:45:13.651 [debug] Child {XPLoggerFileBackend, :general_log} of Supervisor Logger.Backends.Supervisor started
+Pid: #PID<0.103.0>
+Start Call: Logger.Backends.Watcher.start_link({{XPLoggerFileBackend, :general_log}, {XPLoggerFileBackend, :general_log}})
+Restart: :transient
+Shutdown: 5000
+Type: :worker
+19:45:13.651 [info] Child Logger.Backends.Supervisor of Supervisor Logger.Backends.Internal started
+Pid: #PID<0.102.0>
+Start Call: Logger.Backends.Supervisor.start_link([{XPLoggerFileBackend, :general_log}])
+Restart: :permanent
+Shutdown: :infinity
+Type: :supervisor
+19:45:13.651 [info] Child Logger.Backends.Internal of Supervisor Logger.Supervisor started
+Pid: #PID<0.98.0>
+Start Call: Logger.Backends.Internal.start_link([])
+Restart: :permanent
+Shutdown: :infinity
+Type: :supervisor
+19:45:13.651 [info] Application logger started at :nonode@nohost
+19:45:13.651 [info] Application xp_mime started at :nonode@nohost
+19:45:13.652 [info] Application xp_hpax started at :nonode@nohost
+19:45:13.652 [info] Application crypto started at :nonode@nohost
+19:45:13.652 [info] Application asn1 started at :nonode@nohost
+19:45:13.652 [info] Application public_key started at :nonode@nohost
+19:45:13.653 [debug] Child :ssl_handler of Supervisor :logger_sup started
+Pid: #PID<0.108.0>
+Start Call: :logger_olp.start_link(:logger_std_h_ssl_handler, :logger_h_common, %{id: :ssl_handler, module: :logger_std_h, config: %{type: :standard_io, filesync_repeat_interval: :no_repeat}, level: :debug, filters: [], filter_default: :stop, formatter: {:ssl_logger, %{}}}, %{})
+Restart: :temporary
+Shutdown: 2000
+Type: :worker
+19:45:13.656 [info] Child :ssl_pem_cache of Supervisor :ssl_admin_sup started
+Pid: #PID<0.112.0>
+Start Call: :ssl_pem_cache.start_link([])
+Restart: :permanent
+Shutdown: 4000
+Type: :worker
+19:45:13.658 [info] Child :ssl_manager of Supervisor :ssl_admin_sup started
+Pid: #PID<0.113.0>
+Start Call: :ssl_manager.start_link([])
+Restart: :permanent
+Shutdown: 4000
+Type: :worker
+19:45:13.658 [info] Child :tls_client_ticket_store of Supervisor :ssl_admin_sup started
+Pid: #PID<0.114.0>
+Start Call: :tls_client_ticket_store.start_link(1000, 7200)
+Restart: :permanent
+Shutdown: 4000
+Type: :worker
+19:45:13.658 [info] Child :ssl_admin_sup of Supervisor :ssl_sup started
+Pid: #PID<0.111.0>
+Start Call: :ssl_admin_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.659 [info] Child :tls_connection_sup of Supervisor :tls_sup started
+Pid: #PID<0.117.0>
+Start Call: :tls_connection_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.660 [info] Child :ssl_listen_tracker_sup of Supervisor :tls_server_sup started
+Pid: #PID<0.119.0>
+Start Call: :ssl_listen_tracker_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.660 [info] Child :tls_server_session_ticket of Supervisor :tls_server_sup started
+Pid: #PID<0.120.0>
+Start Call: :tls_server_session_ticket_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.661 [info] Child :ssl_server_session_cache_sup of Supervisor :tls_server_sup started
+Pid: #PID<0.121.0>
+Start Call: :ssl_server_session_cache_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.661 [info] Child :ssl_upgrade_server_session_cache_sup of Supervisor :tls_server_sup started
+Pid: #PID<0.122.0>
+Start Call: :ssl_upgrade_server_session_cache_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.661 [info] Child :tls_server_sup of Supervisor :tls_sup started
+Pid: #PID<0.118.0>
+Start Call: :tls_server_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.661 [info] Child :tls_sup of Supervisor :ssl_connection_sup started
+Pid: #PID<0.116.0>
+Start Call: :tls_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.662 [info] Child :dtls_connection_sup of Supervisor :dtls_sup started
+Pid: #PID<0.124.0>
+Start Call: :dtls_connection_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.663 [info] Child :dtls_listener_sup of Supervisor :dtls_server_sup started
+Pid: #PID<0.126.0>
+Start Call: :dtls_listener_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.664 [info] Child :dtls_server_session_cache_sup of Supervisor :dtls_server_sup started
+Pid: #PID<0.127.0>
+Start Call: :dtls_server_session_cache_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.664 [info] Child :dtls_server_sup of Supervisor :dtls_sup started
+Pid: #PID<0.125.0>
+Start Call: :dtls_server_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.664 [info] Child :dtls_sup of Supervisor :ssl_connection_sup started
+Pid: #PID<0.123.0>
+Start Call: :dtls_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.664 [info] Child :ssl_connection_sup of Supervisor :ssl_sup started
+Pid: #PID<0.115.0>
+Start Call: :ssl_connection_sup.start_link()
+Restart: :permanent
+Shutdown: 4000
+Type: :supervisor
+19:45:13.664 [info] Application ssl started at :nonode@nohost
+19:45:13.665 [info] Application xp_mint started at :nonode@nohost
+19:45:13.665 [info] Application xp_nimble_options started at :nonode@nohost
+19:45:13.667 [info] Child XPNimblePool.TaskSupervisor of Supervisor #PID<0.133.0> (Supervisor.Default) started
+Pid: #PID<0.134.0>
+Start Call: Task.Supervisor.start_link([name: XPNimblePool.TaskSupervisor])
+Restart: :permanent
+Shutdown: :infinity
+Type: :supervisor
+19:45:13.668 [info] Application xp_nimble_pool started at :nonode@nohost
+19:45:13.669 [info] Child :telemetry_handler_table of Supervisor :telemetry_sup started
+Pid: #PID<0.138.0>
+Start Call: :telemetry_handler_table.start_link()
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:45:13.669 [info] Application xp_telemetry started at :nonode@nohost
+19:45:13.669 [info] Application xp_finch started at :nonode@nohost
+19:45:13.682 [info] Child XPReq.Finch.PIDPartition0 of Supervisor XPReq.Finch started
+Pid: #PID<0.144.0>
+Start Call: Registry.Partition.start_link(XPReq.Finch.PIDPartition0, {:duplicate, XPReq.Finch, 0, 1, XPReq.Finch.KeyPartition0, XPReq.Finch.PIDPartition0, [], false})
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:45:13.682 [info] Child XPReq.Finch of Supervisor XPReq.Finch.Supervisor started
+Pid: #PID<0.143.0>
+Start Call: Registry.start_link([keys: :duplicate, name: XPReq.Finch, meta: [config: %{pools: %{}, registry_name: XPReq.Finch, supervisor_name: XPReq.Finch.PoolSupervisor, manager_name: XPReq.Finch.PoolManager, default_pool_config: %{count: 1, size: 50, mod: XPFinch.HTTP1.Pool, conn_opts: [protocols: [:http1], transport_opts: [keepalive: true, nodelay: true, timeout: 5000], ssl_key_log_file_device: nil], pool_max_idle_time: :infinity, conn_max_idle_time: :infinity, start_pool_metrics?: false}}]])
+Restart: :permanent
+Shutdown: :infinity
+Type: :supervisor
+19:45:13.682 [info] Child XPReq.Finch.PoolSupervisor of Supervisor XPReq.Finch.Supervisor started
+Pid: #PID<0.145.0>
+Start Call: DynamicSupervisor.start_link([name: XPReq.Finch.PoolSupervisor, strategy: :one_for_one])
+Restart: :permanent
+Shutdown: :infinity
+Type: :supervisor
+19:45:13.683 [info] Child XPFinch.PoolManager of Supervisor XPReq.Finch.Supervisor started
+Pid: #PID<0.146.0>
+Start Call: XPFinch.PoolManager.start_link(%{pools: %{}, registry_name: XPReq.Finch, supervisor_name: XPReq.Finch.PoolSupervisor, manager_name: XPReq.Finch.PoolManager, default_pool_config: %{count: 1, size: 50, mod: XPFinch.HTTP1.Pool, conn_opts: [protocols: [:http1], transport_opts: [keepalive: true, nodelay: true, timeout: 5000], ssl_key_log_file_device: nil], pool_max_idle_time: :infinity, conn_max_idle_time: :infinity, start_pool_metrics?: false}})
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:45:13.683 [info] Child XPReq.Finch of Supervisor #PID<0.141.0> (Supervisor.Default) started
+Pid: #PID<0.142.0>
+Start Call: XPFinch.start_link([name: XPReq.Finch, pools: %{default: [protocols: [:http1]]}])
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:45:13.683 [info] Child XPReq.FinchSupervisor of Supervisor #PID<0.141.0> (Supervisor.Default) started
+Pid: #PID<0.147.0>
+Start Call: DynamicSupervisor.start_link([strategy: :one_for_one, name: XPReq.FinchSupervisor])
+Restart: :permanent
+Shutdown: :infinity
+Type: :supervisor
+19:45:13.683 [info] Child XPReq.Test.Ownership of Supervisor #PID<0.141.0> (Supervisor.Default) started
+Pid: #PID<0.148.0>
+Start Call: XPReq.Test.Ownership.start_link([name: XPReq.Test.Ownership])
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:45:13.683 [info] Application xp_req started at :nonode@nohost
+19:45:13.683 [info] Application burrito started at :nonode@nohost
+19:45:13.686 [info] Child XPBriefly.Entry of Supervisor XPBriefly.Supervisor started
+Pid: #PID<0.152.0>
+Start Call: XPBriefly.Entry.start_link([])
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:45:13.686 [info] Application xp_briefly started at :nonode@nohost
+19:45:13.686 [info] Application xp_schematic started at :nonode@nohost
+19:45:13.686 [info] Application xp_typed_struct started at :nonode@nohost
+19:45:13.686 [info] Application xp_gen_lsp started at :nonode@nohost
+19:45:13.691 [info] Child XPSnowflake.Generator of Supervisor #PID<0.155.0> (Supervisor.Default) started
+Pid: #PID<0.156.0>
+Start Call: XPSnowflake.Generator.start_link(0, 1023)
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:45:13.691 [info] Application xp_snowflake started at :nonode@nohost
+19:45:13.691 [info] Application xp_sourceror started at :nonode@nohost
+19:45:13.691 [info] Application xp_forge started at :nonode@nohost
+19:45:13.692 [info] Application xp_logger_file_backend started at :nonode@nohost
+19:45:13.697 [info] Child :ttb_autostart of Supervisor :runtime_tools_sup started
+Pid: #PID<0.160.0>
+Start Call: :ttb_autostart.start_link()
+Restart: :temporary
+Shutdown: 3000
+Type: :worker
+19:45:13.697 [info] Application runtime_tools started at :nonode@nohost
+19:45:13.697 [info] Application et started at :nonode@nohost
+19:45:13.697 [info] Application observer started at :nonode@nohost
+19:45:13.697 [info] Application xp_path_glob started at :nonode@nohost
+19:45:13.706 [info] Starting NodePortMapper on nonode@nohost
+19:45:13.706 [info] Child XPForge.NodePortMapper of Supervisor XPExpert.Supervisor started
+Pid: #PID<0.164.0>
+Start Call: XPForge.NodePortMapper.start_link([])
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:45:13.706 [info] Child XPForge.Document.Store of Supervisor XPExpert.Supervisor started
+Pid: #PID<0.165.0>
+Start Call: XPForge.Document.Store.start_link([derive: [analysis: &XPForge.Ast.analyze/1]])
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:45:13.707 [info] Child XPExpert.ProjectSupervisor of Supervisor XPExpert.Supervisor started
+Pid: #PID<0.166.0>
+Start Call: DynamicSupervisor.start_link([name: XPExpert.ProjectSupervisor, strategy: :one_for_one])
+Restart: :permanent
+Shutdown: :infinity
+Type: :supervisor
+19:45:13.707 [info] Child XPExpert.DynamicSupervisor of Supervisor XPExpert.Supervisor started
+Pid: #PID<0.167.0>
+Start Call: DynamicSupervisor.start_link([name: XPExpert.DynamicSupervisor])
+Restart: :permanent
+Shutdown: :infinity
+Type: :supervisor
+19:45:13.708 [info] Child XPGenLSP.Assigns of Supervisor XPExpert.Supervisor started
+Pid: #PID<0.168.0>
+Start Call: XPGenLSP.Assigns.start_link([name: XPExpert.Assigns])
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:45:13.708 [info] Child :expert_task_queue of Supervisor XPExpert.Supervisor started
+Pid: #PID<0.169.0>
+Start Call: Task.Supervisor.start_link([name: :expert_task_queue])
+Restart: :permanent
+Shutdown: :infinity
+Type: :supervisor
+19:45:13.709 [info] Child XPGenLSP.Buffer of Supervisor XPExpert.Supervisor started
+Pid: #PID<0.170.0>
+Start Call: XPGenLSP.Buffer.start_link([name: XPExpert.Buffer])
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:45:13.709 [info] Child XPExpert.ActiveProjects of Supervisor XPExpert.Supervisor started
+Pid: #PID<0.171.0>
+Start Call: XPExpert.ActiveProjects.start_link()
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:45:13.709 [debug] [name: XPExpert, buffer: XPExpert.Buffer, task_supervisor: :expert_task_queue, dynamic_supervisor: XPExpert.DynamicSupervisor, assigns: XPExpert.Assigns]
+19:45:13.712 [info] Child XPExpert of Supervisor XPExpert.Supervisor started
+Pid: #PID<0.172.0>
+Start Call: XPExpert.start_link([name: XPExpert, buffer: XPExpert.Buffer, task_supervisor: :expert_task_queue, dynamic_supervisor: XPExpert.DynamicSupervisor, assigns: XPExpert.Assigns])
+Restart: :permanent
+Shutdown: 500
+Type: :worker
+19:45:13.713 [info] Application xp_expert started at :nonode@nohost
+19:45:13.835 [debug] handled request client -> server initialize in 116ms
+19:45:13.841 [info] Server initialized, registering capabilities
+19:45:13.842 [debug] sent request server -> client client/registerCapability
+19:45:13.852 [info] [Project file:///home/bit4bit/src/elixir-1.15/clj_compiler] Starting project
+19:45:13.852 [debug] handled notification client -> server initialized in 14ms
+19:45:13.853 [debug] sent notification server -> client window/logMessage
+19:45:13.860 [info] Child {XPExpert.EngineSupervisor, "clj_compiler"} of Supervisor :"clj_compiler::supervisor" started
+Pid: #PID<0.178.0>
+Start Call: XPExpert.EngineSupervisor.start_link(%XPForge.Project{root_uri: "file:///home/bit4bit/src/elixir-1.15/clj_compiler", mix_exs_uri: "file:///home/bit4bit/src/elixir-1.15/clj_compiler/mix.exs", mix_project?: true, mix_env: nil, mix_target: nil, env_variables: %{}, project_module: nil, entropy: 4774})
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:45:13.862 [debug] sent request server -> client window/workDoneProgress/create
+19:45:13.864 [debug] sent notification server -> client $/progress
+19:45:13.871 [info] Child XPForge.EPMD of Supervisor :net_sup started
+Pid: #PID<0.181.0>
+Start Call: XPForge.EPMD.start_link()
+Restart: :permanent
+Shutdown: 2000
+Type: :worker
+19:45:13.872 [info] Child :auth of Supervisor :net_sup started
+Pid: #PID<0.182.0>
+Start Call: :auth.start_link()
+Restart: :permanent
+Shutdown: 2000
+Type: :worker
+19:45:13.873 [info] Child :net_kernel of Supervisor :net_sup started
+Pid: #PID<0.183.0>
+Start Call: :net_kernel.start_link(%{name: :"expert-manager-clj_compiler-4774@127.0.0.1", supervisor: :net_sup_dynamic, net_tickintensity: 4, net_ticktime: 60, name_domain: :longnames, clean_halt: false})
+Restart: :permanent
+Shutdown: 2000
+Type: :worker
+19:45:13.874 [debug] Child :net_sup_dynamic of Supervisor :kernel_sup started
+Pid: #PID<0.180.0>
+Start Call: :erl_distribution.start_link(%{name: :"expert-manager-clj_compiler-4774@127.0.0.1", supervisor: :net_sup_dynamic, net_tickintensity: 4, net_ticktime: 60, name_domain: :longnames, clean_halt: false})
+Restart: :permanent
+Shutdown: 1000
+Type: :supervisor
+19:45:14.055 [info] [Project file:///home/bit4bit/src/elixir-1.15/clj_compiler] Found elixir executable at /home/bit4bit/.asdf/shims/elixir
+19:45:14.055 [debug] sent notification server -> client window/logMessage
+19:45:14.056 [info] [Project file:///home/bit4bit/src/elixir-1.15/clj_compiler] Finding or building engine
+19:45:14.056 [debug] sent notification server -> client window/logMessage
+19:45:14.056 [debug] sent request server -> client window/workDoneProgress/create
+19:45:14.056 [debug] sent notification server -> client $/progress
+19:45:16.209 [debug] Building engine: * creating /home/bit4bit/.asdf/installs/elixir/1.15.5/.mix/archives/hex-2.3.1
+
+19:45:17.263 [debug] Building engine: * creating /home/bit4bit/.asdf/installs/elixir/1.15.5/.mix/elixir/1-15/rebar3
+
+19:45:17.458 [debug] Building engine: * Getting elixir_sense (https://github.com/elixir-lsp/elixir_sense.git - e3ddc403554050221a2fd19a10a896fa7525bc02)
+
+19:45:18.152 [debug] Building engine: remote: Enumerating objects: 17501, done.        
+remote: Counting objects:   0% (1/3074)        remote: Counting objects:   1% (31/3074)        remote: Counting objects:   2% (62/3074)        remote: Counting objects:   3% (93/3074)        remote: Counting objects:   4% (123/3074)        remote: Counting objects:   5% (154/3074)        remote: Counting objects:   6% (185/3074)        remote: Counting objects:   7% (216/3074)        remote: Counting objects:   8% (246/3074)        remote: Counting objects:   9% (277/3074)        remote: Counting objects:  10% (308/3074)        remote: Counting objects:  11% (339/3074)        remote: Counting objects:  12% (369/3074)        remote: Counting objects:  13% (400/3074)        remote: Counting objects:  14% (431/3074)        remote: Counting objects:  15% (462/3074)        remote: Counting objects:  16% (492/3074)        remote: Counting objects:  17% (523/3074)        remote: Counting objects:  18% (554/3074)        remote: Counting objects:  19% (585/3074)        remote: Counting objects:  20% (615/3074)        remote: Counting objects:  21% (646/3074)        remote: Counting objects:  22% (677/3074)        remote: Counting objects:  23% (708/3074)        remote: Counting objects:  24% (738/3074)        remote: Counting objects:  25% (769/3074)        remote: Counting objects:  26% (800/3074)        remote: Counting objects:  27% (830/3074)        remote: Counting objects:  28% (861/3074)        remote: Counting objects:  29% (892/3074)        remote: Counting objects:  30% (923/3074)        remote: Counting objects:  31% (953/3074)        remote: Counting objects:  32% (984/3074)        remote: Counting objects:  33% (1015/3074)        remote: Counting objects:  34% (1046/3074)        remote: Counting objects:  35% (1076/3074)        remote: Counting objects:  36% (1107/3074)        remote: Counting objects:  37% (1138/3074)        remote: Counting objects:  38% (1169/3074)        remote: Counting objects:  39% (1199/3074)        remote: Counting objects:  40% (1230/3074)        remote: Counting objects:  41% (1261/3074)        
+19:45:18.155 [debug] Building engine: remote: Counting objects:  42% (1292/3074)        remote: Counting objects:  43% (1322/3074)        remote: Counting objects:  44% (1353/3074)        remote: Counting objects:  45% (1384/3074)        remote: Counting objects:  46% (1415/3074)        remote: Counting objects:  47% (1445/3074)        remote: Counting objects:  48% (1476/3074)        remote: Counting objects:  49% (1507/3074)        remote: Counting objects:  50% (1537/3074)        remote: Counting objects:  51% (1568/3074)        remote: Counting objects:  52% (1599/3074)        remote: Counting objects:  53% (1630/3074)        remote: Counting objects:  54% (1660/3074)        remote: Counting objects:  55% (1691/3074)        remote: Counting objects:  56% (1722/3074)        remote: Counting objects:  57% (1753/3074)        remote: Counting objects:  58% (1783/3074)        remote: Counting objects:  59% (1814/3074)        remote: Counting objects:  60% (1845/3074)        remote: Counting objects:  61% (1876/3074)        remote: Counting objects:  62% (1906/3074)        remote: Counting objects:  63% (1937/3074)        remote: Counting objects:  64% (1968/3074)        remote: Counting objects:  65% (1999/3074)        remote: Counting objects:  66% (2029/3074)        remote: Counting objects:  67% (2060/3074)        remote: Counting objects:  68% (2091/3074)        
+19:45:18.155 [debug] Building engine: remote: Counting objects:  69% (2122/3074)        remote: Counting objects:  70% (2152/3074)        remote: Counting objects:  71% (2183/3074)        remote: Counting objects:  72% (2214/3074)        remote: Counting objects:  73% (2245/3074)        remote: Counting objects:  74% (2275/3074)        remote: Counting objects:  75% (2306/3074)        remote: Counting objects:  76% (2337/3074)        remote: Counting objects:  77% (2367/3074)        remote: Counting objects:  78% (2398/3074)        remote: Counting objects:  79% (2429/3074)        
+19:45:18.156 [debug] Building engine: remote: Counting objects:  80% (2460/3074)        remote: Counting objects:  81% (2490/3074)        remote: Counting objects:  82% (2521/3074)        remote: Counting objects:  83% (2552/3074)        remote: Counting objects:  84% (2583/3074)        remote: Counting objects:  85% (2613/3074)        remote: Counting objects:  86% (2644/3074)        remote: Counting objects:  87% (2675/3074)        remote: Counting objects:  88% (2706/3074)        remote: Counting objects:  89% (2736/3074)        remote: Counting objects:  90% (2767/3074)        remote: Counting objects:  91% (2798/3074)        remote: Counting objects:  92% (2829/3074)        remote: Counting objects:  93% (2859/3074)        remote: Counting objects:  94% (2890/3074)        remote: Counting objects:  95% (2921/3074)        remote: Counting objects:  96% (2952/3074)        
+19:45:18.156 [debug] Building engine: remote: Counting objects:  97% (2982/3074)        
+19:45:18.243 [debug] Building engine: remote: Counting objects:  98% (3013/3074)        remote: Counting objects:  99% (3044/3074)        remote: Counting objects: 100% (3074/3074)        remote: Counting objects: 100% (3074/3074), done.        
+remote: Compressing objects:   0% (1/775)        remote: Compressing objects:   1% (8/775)        remote: Compressing objects:   2% (16/775)        remote: Compressing objects:   3% (24/775)        remote: Compressing objects:   4% (31/775)        remote: Compressing objects:   5% (39/775)        remote: Compressing objects:   6% (47/775)        remote: Compressing objects:   7% (55/775)        remote: Compressing objects:   8% (62/775)        remote: Compressing objects:   9% (70/775)        remote: Compressing objects:  10% (78/775)        remote: Compressing objects:  11% (86/775)        remote: Compressing objects:  12% (93/775)        remote: Compressing objects:  13% (101/775)        remote: Compressing objects:  14% (109/775)        
+19:45:18.266 [debug] Building engine: remote: Compressing objects:  15% (117/775)        remote: Compressing objects:  16% (124/775)        remote: Compressing objects:  17% (132/775)        remote: Compressing objects:  18% (140/775)        remote: Compressing objects:  19% (148/775)        remote: Compressing objects:  20% (155/775)        remote: Compressing objects:  21% (163/775)        remote: Compressing objects:  22% (171/775)        remote: Compressing objects:  23% (179/775)        remote: Compressing objects:  24% (186/775)        remote: Compressing objects:  25% (194/775)        remote: Compressing objects:  26% (202/775)        remote: Compressing objects:  27% (210/775)        remote: Compressing objects:  28% (217/775)        remote: Compressing objects:  29% (225/775)        remote: Compressing objects:  30% (233/775)        remote: Compressing objects:  31% (241/775)        remote: Compressing objects:  32% (248/775)        remote: Compressing objects:  33% (256/775)        remote: Compressing objects:  34% (264/775)        remote: Compressing objects:  35% (272/775)        remote: Compressing objects:  36% (279/775)        remote: Compressing objects:  37% (287/775)        remote: Compressing objects:  38% (295/775)        
+19:45:18.269 [debug] Building engine: remote: Compressing objects:  39% (303/775)        remote: Compressing objects:  40% (310/775)        remote: Compressing objects:  41% (318/775)        remote: Compressing objects:  42% (326/775)        remote: Compressing objects:  43% (334/775)        remote: Compressing objects:  44% (341/775)        remote: Compressing objects:  45% (349/775)        remote: Compressing objects:  46% (357/775)        remote: Compressing objects:  47% (365/775)        remote: Compressing objects:  48% (372/775)        remote: Compressing objects:  49% (380/775)        remote: Compressing objects:  50% (388/775)        remote: Compressing objects:  51% (396/775)        remote: Compressing objects:  52% (403/775)        remote: Compressing objects:  53% (411/775)        remote: Compressing objects:  54% (419/775)        remote: Compressing objects:  55% (427/775)        remote: Compressing objects:  56% (434/775)        remote: Compressing objects:  57% (442/775)        remote: Compressing objects:  58% (450/775)        remote: Compressing objects:  59% (458/775)        
+19:45:18.271 [debug] Building engine: remote: Compressing objects:  60% (465/775)        remote: Compressing objects:  61% (473/775)        remote: Compressing objects:  62% (481/775)        remote: Compressing objects:  63% (489/775)        remote: Compressing objects:  64% (496/775)        remote: Compressing objects:  65% (504/775)        remote: Compressing objects:  66% (512/775)        remote: Compressing objects:  67% (520/775)        remote: Compressing objects:  68% (527/775)        remote: Compressing objects:  69% (535/775)        remote: Compressing objects:  70% (543/775)        remote: Compressing objects:  71% (551/775)        remote: Compressing objects:  72% (558/775)        remote: Compressing objects:  73% (566/775)        remote: Compressing objects:  74% (574/775)        remote: Compressing objects:  75% (582/775)        remote: Compressing objects:  76% (589/775)        remote: Compressing objects:  77% (597/775)        remote: Compressing objects:  78% (605/775)        remote: Compressing objects:  79% (613/775)        remote: Compressing objects:  80% (620/775)        
+19:45:18.275 [debug] Building engine: remote: Compressing objects:  81% (628/775)        remote: Compressing objects:  82% (636/775)        remote: Compressing objects:  83% (644/775)        remote: Compressing objects:  84% (651/775)        remote: Compressing objects:  85% (659/775)        remote: Compressing objects:  86% (667/775)        remote: Compressing objects:  87% (675/775)        remote: Compressing objects:  88% (682/775)        remote: Compressing objects:  89% (690/775)        remote: Compressing objects:  90% (698/775)        remote: Compressing objects:  91% (706/775)        remote: Compressing objects:  92% (713/775)        remote: Compressing objects:  93% (721/775)        remote: Compressing objects:  94% (729/775)        remote: Compressing objects:  95% (737/775)        remote: Compressing objects:  96% (744/775)        
+19:45:18.275 [debug] Building engine: remote: Compressing objects:  97% (752/775)        remote: Compressing objects:  98% (760/775)        remote: Compressing objects:  99% (768/775)        remote: Compressing objects: 100% (775/775)        remote: Compressing objects: 100% (775/775), done.        
+
+19:45:19.512 [debug] Building engine: remote: Total 17501 (delta 2434), reused 2563 (delta 2291), pack-reused 14427 (from 4)        
+
+19:45:20.575 [debug] Building engine: Resolving Hex dependencies...
+
+19:45:20.619 [debug] Building engine: Resolution completed in 0.042s
+
+19:45:20.623 [debug] Building engine: Unchanged:
+  briefly 0.5.1
+
+19:45:20.623 [debug] Building engine:   bunt 1.0.0
+  credo 1.7.12
+  deps_nix 2.4.0
+  file_system 1.1.0
+  gen_lsp 0.11.2
+
+19:45:20.623 [debug] Building engine:   hpax 1.0.3
+  jason 1.4.4
+  mint 1.7.1
+  nimble_options 1.1.1
+  nimble_parsec 1.2.3
+  patch 0.15.0
+
+19:45:20.623 [debug] Building engine:   path_glob 0.2.0
+  refactorex 0.1.52
+  schematic 0.2.1
+
+19:45:20.623 [debug] Building engine:   snowflake 1.0.4
+  sourceror 1.10.0
+  telemetry 1.3.0
+  typed_struct 0.3.0
+
+19:45:20.627 [debug] Building engine: * Getting deps_nix (Hex package)
+
+19:45:20.659 [debug] Building engine: * Getting credo (Hex package)
+
+19:45:20.750 [debug] Building engine: * Getting gen_lsp (Hex package)
+
+19:45:20.987 [debug] Building engine: * Getting patch (Hex package)
+
+19:45:21.004 [debug] Building engine: * Getting path_glob (Hex package)
+
+19:45:21.008 [debug] Building engine: * Getting sourceror (Hex package)
+
+19:45:21.013 [debug] Building engine: * Getting refactorex (Hex package)
+
+19:45:21.025 [debug] Building engine: * Getting nimble_parsec (Hex package)
+
+19:45:21.028 [debug] Building engine: * Getting jason (Hex package)
+
+19:45:21.032 [debug] Building engine: * Getting nimble_options (Hex package)
+
+19:45:21.035 [debug] Building engine: * Getting schematic (Hex package)
+
+19:45:21.039 [debug] Building engine: * Getting typed_struct (Hex package)
+
+19:45:21.041 [debug] Building engine: * Getting telemetry (Hex package)
+
+19:45:21.045 [debug] Building engine: * Getting briefly (Hex package)
+
+19:45:21.049 [debug] Building engine: * Getting snowflake (Hex package)
+
+19:45:21.057 [debug] Building engine: * Getting bunt (Hex package)
+
+19:45:21.060 [debug] Building engine: * Getting file_system (Hex package)
+
+19:45:21.064 [debug] Building engine: * Getting mint (Hex package)
+
+19:45:21.074 [debug] Building engine: * Getting hpax (Hex package)
+
+19:45:21.078 [debug] Building engine: You have added/upgraded packages you could sponsor, run `mix hex.sponsor` to learn more
+
+19:45:21.251 [debug] Building engine: ==> sourceror
+Compiling 12 files (.ex)
+
+19:45:21.584 [debug] Building engine: Generated sourceror app
+
+19:45:21.611 [debug] Building engine: ==> typed_struct
+Compiling 2 files (.ex)
+
+19:45:21.657 [debug] Building engine: Generated typed_struct app
+
+19:45:21.672 [debug] Building engine: ==> refactorex
+Compiling 47 files (.ex)
+
+19:45:22.066 [debug] Building engine: Generated refactorex app
+
+19:45:22.088 [debug] Building engine: ==> file_system
+Compiling 7 files (.ex)
+
+19:45:22.206 [debug] Building engine: Generated file_system app
+
+19:45:22.220 [debug] Building engine: ==> nimble_options
+Compiling 3 files (.ex)
+
+19:45:22.501 [debug] Building engine: Generated nimble_options app
+
+19:45:22.523 [debug] Building engine: ==> snowflake
+Compiling 4 files (.ex)
+
+19:45:22.537 [debug] Building engine: warning: use Bitwise is deprecated. import Bitwise instead
+  lib/snowflake/util.ex:10: Snowflake.Util (module)
+
+
+19:45:22.564 [debug] Building engine: warning: Supervisor.Spec.worker/2 is deprecated. Use the new child specifications outlined in the Supervisor module instead
+  lib/snowflake.ex:11: Snowflake.start/2
+
+
+19:45:22.567 [debug] Building engine: Generated snowflake app
+
+19:45:22.588 [debug] Building engine: ==> nimble_parsec
+Compiling 4 files (.ex)
+
+19:45:22.845 [debug] Building engine: Generated nimble_parsec app
+
+19:45:22.861 [debug] Building engine: ==> bunt
+Compiling 2 files (.ex)
+
+19:45:23.262 [debug] Building engine: Generated bunt app
+
+19:45:23.768 [debug] Building engine: ===> Analyzing applications...
+
+19:45:23.812 [debug] Building engine: ===> Compiling telemetry
+
+19:45:24.129 [debug] Building engine: ==> briefly
+Compiling 5 files (.ex)
+
+19:45:24.251 [debug] Building engine: Generated briefly app
+
+19:45:24.277 [debug] Building engine: ==> jason
+Compiling 10 files (.ex)
+
+19:45:25.458 [debug] Building engine: Generated jason app
+
+19:45:25.474 [debug] Building engine: ==> schematic
+Compiling 2 files (.ex)
+
+19:45:25.648 [debug] Building engine: Generated schematic app
+
+19:45:25.664 [debug] Building engine: ==> hpax
+Compiling 4 files (.ex)
+
+19:45:26.179 [debug] Building engine: Generated hpax app
+
+19:45:26.223 [debug] Building engine: ==> mint
+Compiling 1 file (.erl)
+
+19:45:26.284 [debug] Building engine: Compiling 20 files (.ex)
+
+19:45:27.026 [debug] Building engine: Generated mint app
+
+19:45:27.036 [debug] Building engine: ==> elixir_sense
+Compiling 1 file (.yrl)
+
+19:45:29.399 [debug] Building engine: Compiling 5 files (.erl)
+
+19:45:32.652 [debug] Building engine: Compiling 88 files (.ex)
+
+19:45:33.087 [debug] Building engine: warning: variable "x" is unused (if the variable is not meant to be used, prefix it with an underscore)
+  lib/elixir_sense/core/compiler.ex:2233: ElixirSense.Core.Compiler.alias_defmodule/3
+
+
+19:45:34.570 [debug] Building engine: warning: :elixir_rewrite.guard/6 is undefined or private. Did you mean:
+
+      * guard_rewrite/6
+
+  lib/elixir_sense/core/compiler/rewrite.ex:32: ElixirSense.Core.Compiler.Rewrite.do_rewrite/7
+
+
+19:45:34.570 [debug] Building engine: warning: :elixir_def.local_for/4 is undefined or private. Did you mean:
+
+      * local_for/5
+
+  lib/elixir_sense/core/normalized/macro/env.ex:9: ElixirSense.Core.Normalized.Macro.Env.expand_import/5
+
+warning: :elixir_rewrite.match/6 is undefined or private. Did you mean:
+
+      * match_rewrite/5
+
+  lib/elixir_sense/core/compiler/rewrite.ex:18: ElixirSense.Core.Compiler.Rewrite.do_rewrite/7
+
+
+19:45:34.609 [debug] Building engine: Generated elixir_sense app
+
+19:45:34.630 [debug] Building engine: ==> patch
+Compiling 43 files (.ex)
+
+19:45:35.088 [debug] Building engine: Generated patch app
+
+19:45:35.099 [debug] Building engine: ==> deps_nix
+
+19:45:35.100 [debug] Building engine: warning: the dependency :deps_nix requires Elixir "~> 1.16" but you are running on v1.15.5
+
+19:45:35.103 [debug] Building engine: Compiling 9 files (.ex)
+
+19:45:35.275 [debug] Building engine: warning: Mix.Dep.Converger.converge/1 is undefined or private. Did you mean:
+
+      * converge/4
+
+  lib/mix/tasks/deps.nix.ex:66: Mix.Tasks.Deps.Nix.run/1
+
+
+19:45:35.276 [debug] Building engine: warning: Path.relative_to/3 is undefined or private. Did you mean:
+
+      * relative_to/2
+
+  lib/deps_nix/derivation.ex:94: DepsNix.Derivation.from/2
+
+
+19:45:35.282 [debug] Building engine: Generated deps_nix app
+
+19:45:35.313 [debug] Building engine: ==> credo
+Compiling 251 files (.ex)
+
+19:45:39.241 [debug] Building engine: Generated credo app
+
+19:45:39.271 [debug] Building engine: ==> gen_lsp
+Compiling 472 files (.ex)
+
+19:45:48.584 [debug] Building engine: Generated gen_lsp app
+
+19:45:48.612 [debug] Building engine: ==> path_glob
+Compiling 2 files (.ex)
+
+19:45:52.614 [debug] Building engine: Generated path_glob app
+
+19:45:52.838 [debug] Building engine: ==> forge
+Compiling 5 files (.erl)
+
+19:45:56.324 [debug] Building engine: Compiling 109 files (.ex)
+
+19:45:58.599 [debug] Building engine: Generated forge app
+
+19:45:58.608 [debug] Building engine: ==> engine
+Compiling 101 files (.ex)
+
+19:46:00.247 [debug] Building engine: Generated engine app
+
+19:46:00.862 [debug] Building engine: ** (UndefinedFunctionError) function Mix.install_project_dir/0 is undefined or private. Did you mean:
+
+      * install/1
+      * install/2
+      * installed?/0
+
+    (mix 1.15.5) Mix.install_project_dir()
+    /home/bit4bit/.local/share/.burrito/expert_erts-15.2.7_0.1.0-03ec5c6/lib/xp_expert-0.1.0-03ec5c6/priv/build_engine.exs:29: (file)
+
+19:46:00.923 [error] Engine build script exited with reason: :normal ** (UndefinedFunctionError) function Mix.install_project_dir/0 is undefined or private. Did you mean:
+
+      * install/1
+      * install/2
+      * installed?/0
+
+    (mix 1.15.5) Mix.install_project_dir()
+    /home/bit4bit/.local/share/.burrito/expert_erts-15.2.7_0.1.0-03ec5c6/lib/xp_expert-0.1.0-03ec5c6/priv/build_engine.exs:29: (file)
+
+19:46:00.924 [debug] sent notification server -> client $/progress
+19:46:00.925 [debug] sent notification server -> client $/progress
+19:46:00.925 [error] Process #PID<0.179.0> terminating
+** (exit) {:error, :normal, ~c"** (UndefinedFunctionError) function Mix.install_project_dir/0 is undefined or private. Did you mean:\n\n      * install/1\n      * install/2\n      * installed?/0\n\n    (mix 1.15.5) Mix.install_project_dir()\n    /home/bit4bit/.local/share/.burrito/expert_erts-15.2.7_0.1.0-03ec5c6/lib/xp_expert-0.1.0-03ec5c6/priv/build_engine.exs:29: (file)\n"}
+    (stdlib 6.2.2.1) gen_server.erl:2210: :gen_server.init_it/6
+    (stdlib 6.2.2.1) proc_lib.erl:329: :proc_lib.init_p_do_apply/3
+Initial Call: XPExpert.Project.Node.init/1
+Ancestors: [:"clj_compiler::supervisor", XPExpert.ProjectSupervisor, XPExpert.Supervisor, #PID<0.162.0>]
+Message Queue Length: 0
+Messages: []
+Links: [#PID<0.177.0>]
+Dictionary: []
+Trapping Exits: false
+Status: :running
+Heap Size: 6772
+Stack Size: 29
+Reductions: 19829
+19:46:00.925 [error] Child {XPExpert.Project.Node, "clj_compiler"} of Supervisor :"clj_compiler::supervisor" failed to start
+** (exit) {:error, :normal, ~c"** (UndefinedFunctionError) function Mix.install_project_dir/0 is undefined or private. Did you mean:\n\n      * install/1\n      * install/2\n      * installed?/0\n\n    (mix 1.15.5) Mix.install_project_dir()\n    /home/bit4bit/.local/share/.burrito/expert_erts-15.2.7_0.1.0-03ec5c6/lib/xp_expert-0.1.0-03ec5c6/priv/build_engine.exs:29: (file)\n"}
+Start Call: XPExpert.Project.Node.start_link(%XPForge.Project{root_uri: "file:///home/bit4bit/src/elixir-1.15/clj_compiler", mix_exs_uri: "file:///home/bit4bit/src/elixir-1.15/clj_compiler/mix.exs", mix_project?: true, mix_env: nil, mix_target: nil, env_variables: %{}, project_module: nil, entropy: 4774})
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+19:46:00.925 [error] Failed to start project node for clj_compiler: {:shutdown,
+ {:failed_to_start_child, {XPExpert.Project.Node, "clj_compiler"},
+  {:error, :normal,
+   ~c"** (UndefinedFunctionError) function Mix.install_project_dir/0 is undefined or private. Did you mean:\n\n      * install/1\n      * install/2\n      * installed?/0\n\n    (mix 1.15.5) Mix.install_project_dir()\n    /home/bit4bit/.local/share/.burrito/expert_erts-15.2.7_0.1.0-03ec5c6/lib/xp_expert-0.1.0-03ec5c6/priv/build_engine.exs:29: (file)\n"}}}
+19:46:00.925 [debug] sent notification server -> client window/logMessage
+19:46:00.926 [error] [Project file:///home/bit4bit/src/elixir-1.15/clj_compiler] Failed to start child {XPExpert.Project.Node, "clj_compiler"}: {:error, :normal, ~c"** (UndefinedFunctionError) function Mix.install_project_dir/0 is undefined or private. Did you mean:\n\n      * install/1\n      * install/2\n      * installed?/0\n\n    (mix 1.15.5) Mix.install_project_dir()\n    /home/bit4bit/.local/share/.burrito/expert_erts-15.2.7_0.1.0-03ec5c6/lib/xp_expert-0.1.0-03ec5c6/priv/build_engine.exs:29: (file)\n"}
+19:46:00.926 [debug] sent notification server -> client window/logMessage
+19:46:00.926 [debug] sent notification server -> client window/showMessage

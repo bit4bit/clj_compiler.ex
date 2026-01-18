@@ -4,12 +4,11 @@
 
 (defn use_in_let [] (let [f (fn [x] (* x 2))] (f 10)))
 
-(defn make_adder [n] (fn [x] (+ x n)))
+ (defn make_adder [n] (fn [x] (+ x n)))
 
-;; Temporarily disabled due to nested function call issue
-;; (defn call_returned_fn [] ((make_adder 5) 3))
+ (defn call_returned_fn [] ((make_adder 5) 3))
 
-(defn no_params [] ((fn [] 42)))
+ (defn no_params [] ((fn [] 42)))
 
 (defn multi_params [] ((fn [a b c] (+ a (+ b c))) 1 2 3))
 

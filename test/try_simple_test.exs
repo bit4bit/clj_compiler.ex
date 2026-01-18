@@ -2,7 +2,7 @@ defmodule TrySimpleTest do
   use ExUnit.Case
 
   defmodule TrySimpleProject do
-    use CljCompiler, dir: "test/fixtures/lib/clj/test_try_simple"
+    use CljCompiler, dir: "test/fixtures/lib/clj/test-try-simple"
   end
 
   test "basic try/catch" do

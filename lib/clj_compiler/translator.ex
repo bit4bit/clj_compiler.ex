@@ -247,6 +247,46 @@ defmodule CljCompiler.Translator do
        do: value
 
   defp translate_expr(
+         {:map, elements, _line},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    translate_map(
+      elements,
+      parent_module,
+      attr_names,
+      param_names,
+      local_functions,
+      namespace_uses,
+      file
+    )
+  end
+
+  defp translate_expr(
+         {:map, elements},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    translate_map(
+      elements,
+      parent_module,
+      attr_names,
+      param_names,
+      local_functions,
+      namespace_uses,
+      file
+    )
+  end
+
+  defp translate_expr(
          {:keyword, atom},
          _parent_module,
          _attr_names,
@@ -256,6 +296,48 @@ defmodule CljCompiler.Translator do
          _file
        ),
        do: atom
+
+  defp translate_map(
+         elements,
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    key_value_pairs =
+      Enum.chunk_every(elements, 2)
+      |> Enum.map(fn [key, value] ->
+        key_ast =
+          translate_expr(
+            key,
+            parent_module,
+            attr_names,
+            param_names,
+            local_functions,
+            namespace_uses,
+            file
+          )
+
+        value_ast =
+          translate_expr(
+            value,
+            parent_module,
+            attr_names,
+            param_names,
+            local_functions,
+            namespace_uses,
+            file
+          )
+
+        {key_ast, value_ast}
+      end)
+
+    quote do
+      %{unquote_splicing(key_value_pairs)}
+    end
+  end
 
   defp translate_expr(
          {:symbol, "true"},
