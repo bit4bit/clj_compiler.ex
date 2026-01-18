@@ -214,6 +214,37 @@ defmodule CljCompiler.Translator do
   end
 
   defp translate_body(
+         forms,
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       )
+       when is_list(forms) and length(forms) > 1 do
+    translated_forms =
+      Enum.map(forms, fn form ->
+        translate_expr(
+          form,
+          parent_module,
+          attr_names,
+          param_names,
+          local_functions,
+          namespace_uses,
+          file
+        )
+      end)
+      |> Enum.filter(fn expr -> expr != nil end)
+
+    case translated_forms do
+      [] -> nil
+      [single] -> single
+      multiple -> {:__block__, [], multiple}
+    end
+  end
+
+  defp translate_body(
          [],
          _parent_module,
          _attr_names,
@@ -513,6 +544,17 @@ defmodule CljCompiler.Translator do
       raise(unquote(exception_ast))
     end
   end
+
+  defp translate_expr(
+         {:list, [{:symbol, "comment"} | _args]},
+         _parent_module,
+         _attr_names,
+         _param_names,
+         _local_functions,
+         _namespace_uses,
+         _file
+       ),
+       do: nil
 
   defp translate_expr(
          {:list, [{:symbol, "try"}, body | clauses]},
@@ -1125,7 +1167,7 @@ defmodule CljCompiler.Translator do
       fn_name in @built_in_ops or normalized in @built_in_ops ->
         :ok
 
-      fn_name in ~w(str if let fn try throw) or is_exception_constructor?(fn_name) ->
+      fn_name in ~w(str if let fn try throw comment) or is_exception_constructor?(fn_name) ->
         :ok
 
       String.starts_with?(fn_name, ":") ->

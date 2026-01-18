@@ -20,86 +20,235 @@ defmodule CljCompiler.Reader do
   def parse(source, file \\ "clj_file") do
     source
     |> String.trim()
-    |> remove_comments()
     |> tokenize_with_positions()
     |> parse_tokens(file)
   end
 
-  defp remove_comments(source) do
-    source
-    |> String.split("\n")
-    |> Enum.map(fn line ->
-      case String.split(line, ";", parts: 2) do
-        [code, _comment] -> code
-        [code] -> code
-      end
-    end)
-    |> Enum.join("\n")
-  end
-
   defp tokenize_with_positions(source) do
-    tokenize_impl(source, [], "", false, 1, 1, 1, 1)
+    tokenize_impl(source, [], "", false, false, 1, 1, 1, 1)
   end
 
-  defp tokenize_impl("", acc, current, _in_string, _line, _col, _token_line, _token_col) do
-    acc = if current != "", do: [current | acc], else: acc
+  defp tokenize_impl(
+         "",
+         acc,
+         _current,
+         _in_string,
+         true,
+         _line,
+         _col,
+         _token_line,
+         _token_col
+       ) do
     Enum.reverse(acc)
   end
 
-  defp tokenize_impl("\"" <> rest, acc, current, false, line, col, _tl, _tc) do
+  defp tokenize_impl(
+         "",
+         acc,
+         _current,
+         _in_string,
+         _in_comment,
+         _line,
+         _col,
+         _token_line,
+         _token_col
+       ) do
+    Enum.reverse(acc)
+  end
+
+  defp tokenize_impl(
+         <<char::utf8, rest::binary>>,
+         acc,
+         _current,
+         false,
+         true,
+         line,
+         col,
+         _tl,
+         _tc
+       ) do
+    if char == ?\n do
+      tokenize_impl(rest, acc, "", false, false, line + 1, 1, line + 1, 1)
+    else
+      tokenize_impl(rest, acc, "", false, true, line, col + 1, line, col)
+    end
+  end
+
+  defp tokenize_impl("\n" <> rest, acc, current, in_string, _in_comment, line, _col, _tl, _tc) do
+    if in_string do
+      tokenize_impl(rest, [], "", true, false, line + 1, 1, line + 1, 1)
+    else
+      acc = if current != "", do: [current | acc], else: acc
+      tokenize_impl(rest, acc, "", false, false, line + 1, 1, line + 1, 1)
+    end
+  end
+
+  defp tokenize_impl(";" <> rest, acc, current, true, false, line, col, tl, tc) do
+    tokenize_impl(rest, acc, current <> ";", true, false, line, col + 1, tl, tc)
+  end
+
+  defp tokenize_impl(";" <> rest, acc, "", false, false, line, col, _tl, _tc) do
+    tokenize_impl(rest, acc, "", false, true, line, col + 1, line, col)
+  end
+
+  defp tokenize_impl(";" <> rest, acc, current, false, false, line, col, tl, tc) do
     acc = if current != "", do: [current | acc], else: acc
-    tokenize_impl(rest, acc, "\"", true, line, col + 1, line, col)
+    tokenize_impl(rest, acc, "", false, true, line, col + 1, tl, tc)
   end
 
-  defp tokenize_impl("\"" <> rest, acc, current, true, line, col, _tl, _tc) do
-    tokenize_impl(rest, [current <> "\"" | acc], "", false, line, col + 1, line, col)
+  defp tokenize_impl("#_" <> rest, acc, "", false, false, line, col, _tl, _tc) do
+    tokenize_impl(rest, [{:skip, line, col} | acc], "", false, false, line, col + 2, line, col)
   end
 
-  defp tokenize_impl(<<char::utf8, rest::binary>>, acc, current, true, line, col, tl, tc) do
-    new_line = if char == ?\n, do: line + 1, else: line
-    new_col = if char == ?\n, do: 1, else: col + 1
-    tokenize_impl(rest, acc, current <> <<char::utf8>>, true, new_line, new_col, tl, tc)
-  end
-
-  defp tokenize_impl("(" <> rest, acc, current, false, line, col, _tl, _tc) do
+  defp tokenize_impl("#_" <> rest, acc, current, false, false, line, col, tl, tc) do
     acc = if current != "", do: [current | acc], else: acc
-    tokenize_impl(rest, [{:paren_open, line, col} | acc], "", false, line, col + 1, line, col)
+    tokenize_impl(rest, [{:skip, line, col} | acc], "", false, false, line, col + 2, tl, tc)
   end
 
-  defp tokenize_impl(")" <> rest, acc, current, false, line, col, _tl, _tc) do
+  defp tokenize_impl("\"" <> rest, acc, current, false, false, line, col, _tl, _tc) do
     acc = if current != "", do: [current | acc], else: acc
-    tokenize_impl(rest, [{:paren_close, line, col} | acc], "", false, line, col + 1, line, col)
+    tokenize_impl(rest, acc, "\"", true, false, line, col + 1, line, col)
   end
 
-  defp tokenize_impl("[" <> rest, acc, current, false, line, col, _tl, _tc) do
+  defp tokenize_impl("\"" <> rest, acc, current, true, false, line, col, _tl, _tc) do
+    tokenize_impl(rest, [current <> "\"" | acc], "", false, false, line, col + 1, line, col)
+  end
+
+  defp tokenize_impl(<<char::utf8, rest::binary>>, acc, current, true, false, line, col, tl, tc) do
+    tokenize_impl(rest, acc, current <> <<char::utf8>>, true, false, line, col + 1, tl, tc)
+  end
+
+  defp tokenize_impl(
+         <<char::utf8, rest::binary>>,
+         acc,
+         _current,
+         false,
+         true,
+         line,
+         col,
+         _tl,
+         _tc
+       ) do
+    if char == ?\n do
+      tokenize_impl(rest, acc, "", false, false, line + 1, 1, line + 1, 1)
+    else
+      tokenize_impl(rest, acc, "", false, true, line, col + 1, line, col)
+    end
+  end
+
+  defp tokenize_impl("(" <> rest, acc, current, false, false, line, col, _tl, _tc) do
     acc = if current != "", do: [current | acc], else: acc
-    tokenize_impl(rest, [{:bracket_open, line, col} | acc], "", false, line, col + 1, line, col)
+
+    tokenize_impl(
+      rest,
+      [{:paren_open, line, col} | acc],
+      "",
+      false,
+      false,
+      line,
+      col + 1,
+      line,
+      col
+    )
   end
 
-  defp tokenize_impl("]" <> rest, acc, current, false, line, col, _tl, _tc) do
+  defp tokenize_impl(")" <> rest, acc, current, false, false, line, col, _tl, _tc) do
     acc = if current != "", do: [current | acc], else: acc
-    tokenize_impl(rest, [{:bracket_close, line, col} | acc], "", false, line, col + 1, line, col)
+
+    tokenize_impl(
+      rest,
+      [{:paren_close, line, col} | acc],
+      "",
+      false,
+      false,
+      line,
+      col + 1,
+      line,
+      col
+    )
   end
 
-  defp tokenize_impl("{" <> rest, acc, current, false, line, col, _tl, _tc) do
+  defp tokenize_impl("[" <> rest, acc, current, false, false, line, col, _tl, _tc) do
     acc = if current != "", do: [current | acc], else: acc
-    tokenize_impl(rest, [{:brace_open, line, col} | acc], "", false, line, col + 1, line, col)
+
+    tokenize_impl(
+      rest,
+      [{:bracket_open, line, col} | acc],
+      "",
+      false,
+      false,
+      line,
+      col + 1,
+      line,
+      col
+    )
   end
 
-  defp tokenize_impl("}" <> rest, acc, current, false, line, col, _tl, _tc) do
+  defp tokenize_impl("]" <> rest, acc, current, false, false, line, col, _tl, _tc) do
     acc = if current != "", do: [current | acc], else: acc
-    tokenize_impl(rest, [{:brace_close, line, col} | acc], "", false, line, col + 1, line, col)
+
+    tokenize_impl(
+      rest,
+      [{:bracket_close, line, col} | acc],
+      "",
+      false,
+      false,
+      line,
+      col + 1,
+      line,
+      col
+    )
   end
 
-  defp tokenize_impl(<<char::utf8, rest::binary>>, acc, current, false, line, col, _tl, _tc)
-       when char in [?\s, ?\n, ?\t, ?\r] do
+  defp tokenize_impl("{" <> rest, acc, current, false, false, line, col, _tl, _tc) do
     acc = if current != "", do: [current | acc], else: acc
-    new_line = if char == ?\n, do: line + 1, else: line
-    new_col = if char == ?\n, do: 1, else: col + 1
-    tokenize_impl(rest, acc, "", false, new_line, new_col, new_line, new_col)
+
+    tokenize_impl(
+      rest,
+      [{:brace_open, line, col} | acc],
+      "",
+      false,
+      false,
+      line,
+      col + 1,
+      line,
+      col
+    )
   end
 
-  defp tokenize_impl(<<char::utf8, rest::binary>>, acc, current, false, line, col, tl, tc) do
+  defp tokenize_impl("}" <> rest, acc, current, false, false, line, col, _tl, _tc) do
+    acc = if current != "", do: [current | acc], else: acc
+
+    tokenize_impl(
+      rest,
+      [{:brace_close, line, col} | acc],
+      "",
+      false,
+      false,
+      line,
+      col + 1,
+      line,
+      col
+    )
+  end
+
+  defp tokenize_impl(
+         <<char::utf8, rest::binary>>,
+         acc,
+         current,
+         false,
+         false,
+         line,
+         col,
+         _tl,
+         _tc
+       )
+       when char in [?\s, ?\t, ?\r] do
+    acc = if current != "", do: [current | acc], else: acc
+    tokenize_impl(rest, acc, "", false, false, line, col + 1, line, col + 1)
+  end
+
+  defp tokenize_impl(<<char::utf8, rest::binary>>, acc, current, false, false, line, col, tl, tc) do
     token_line = if current == "", do: line, else: tl
     token_col = if current == "", do: col, else: tc
 
@@ -107,6 +256,7 @@ defmodule CljCompiler.Reader do
       rest,
       acc,
       current <> <<char::utf8>>,
+      false,
       false,
       line,
       col + 1,
@@ -183,6 +333,11 @@ defmodule CljCompiler.Reader do
 
   defp parse_forms([], acc, _file, stack), do: {Enum.reverse(acc), stack}
 
+  defp parse_forms([{:skip, _line, _col} | rest], acc, file, stack) do
+    {_form, remaining, new_stack} = skip_next_form(rest, file, stack)
+    parse_forms(remaining, acc, file, new_stack)
+  end
+
   defp parse_forms([{:paren_open, line, col} | rest], acc, file, stack) do
     {form, remaining, new_stack} =
       parse_list(rest, [], file, push_delimiter(stack, :paren, line, col))
@@ -232,8 +387,36 @@ defmodule CljCompiler.Reader do
     parse_forms(rest, [parse_atom(token) | acc], file, stack)
   end
 
+  defp skip_next_form([{:paren_open, line, col} | rest], file, stack) do
+    {_form, remaining, new_stack} =
+      parse_list(rest, [], file, push_delimiter(stack, :paren, line, col))
+
+    {:skip, remaining, new_stack}
+  end
+
+  defp skip_next_form([{:bracket_open, line, col} | rest], file, stack) do
+    {_form, remaining, new_stack} =
+      parse_vector(rest, [], file, push_delimiter(stack, :bracket, line, col))
+
+    {:skip, remaining, new_stack}
+  end
+
+  defp skip_next_form([{:brace_open, line, col} | rest], file, stack) do
+    {_form, remaining, new_stack} =
+      parse_map(rest, [], file, push_delimiter(stack, :brace, line, col))
+
+    {:skip, remaining, new_stack}
+  end
+
+  defp skip_next_form([_token | rest], _file, stack), do: {:skip, rest, stack}
+
   defp parse_list([], _acc, _file, stack) do
     {[], [], stack}
+  end
+
+  defp parse_list([{:skip, _line, _col} | rest], acc, file, stack) do
+    {_form, remaining, new_stack} = skip_next_form(rest, file, stack)
+    parse_list(remaining, acc, file, new_stack)
   end
 
   defp parse_list([{:paren_open, line, col} | rest], acc, file, stack) do
@@ -355,6 +538,11 @@ defmodule CljCompiler.Reader do
     {[], [], stack}
   end
 
+  defp parse_vector([{:skip, _line, _col} | rest], acc, file, stack) do
+    {_form, remaining, new_stack} = skip_next_form(rest, file, stack)
+    parse_vector(remaining, acc, file, new_stack)
+  end
+
   defp parse_vector([{:paren_open, line, col} | rest], acc, file, stack) do
     {nested, remaining, new_stack} =
       parse_list(rest, [], file, push_delimiter(stack, :paren, line, col))
@@ -472,6 +660,11 @@ defmodule CljCompiler.Reader do
 
   defp parse_map([], _acc, _file, stack) do
     {[], [], stack}
+  end
+
+  defp parse_map([{:skip, _line, _col} | rest], acc, file, stack) do
+    {_form, remaining, new_stack} = skip_next_form(rest, file, stack)
+    parse_map(remaining, acc, file, new_stack)
   end
 
   defp parse_map([{:paren_open, line, col} | rest], acc, file, stack) do

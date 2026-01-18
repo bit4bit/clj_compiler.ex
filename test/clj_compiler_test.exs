@@ -992,4 +992,213 @@ defmodule CljCompilerTest do
   test "try/catch/finally integration - only catch" do
     assert TryProject.TestTry.Core.try_only_catch() == :normal
   end
+
+  describe "line comments" do
+    test "parses line comment at end of line" do
+      source = "(ns test.comments)\n(defn foo [] \"body\" ; this is a comment\n)"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert [
+               {:list, [{:symbol, "ns"}, {:symbol, "test.comments"}], _},
+               {:list, [{:symbol, "defn"}, {:symbol, "foo"}, {:vector, []}, {:string, "body"}], _}
+             ] = ast
+    end
+
+    test "parses code with semicolon in string" do
+      source = "(ns test.comments) (defn foo [] \"string with ; semicolon\")"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert {:list, [_, _, _, {:string, "string with ; semicolon"}], _} = List.last(ast)
+    end
+
+    test "parses multiple comments on same line" do
+      source = "(ns test.comments) ; first comment\n (defn foo [] \"body\")"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert [
+               {:list, [{:symbol, "ns"}, {:symbol, "test.comments"}], _},
+               {:list, [{:symbol, "defn"}, {:symbol, "foo"}, {:vector, []}, {:string, "body"}], _}
+             ] = ast
+    end
+
+    test "comment inside list is stripped" do
+      source = "(ns test.comments) (defn foo [] (list 1 2 ; inner comment\n 3))"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      defn_form =
+        Enum.find(ast, fn
+          {:list, [{:symbol, "defn"}, {:symbol, "foo"} | _], _} -> true
+          _ -> false
+        end)
+
+      assert defn_form != nil
+      {:list, [_, _, _, inner_list], _} = defn_form
+      assert {:list, inner_elements} = inner_list
+      # Should have list symbol + 3 numbers (1, 2, 3)
+      assert length(inner_elements) == 4
+      assert {:symbol, "list"} in inner_elements
+    end
+  end
+
+  describe "#_ reader macro" do
+    test "skips next form with #_" do
+      source = "(ns test.comments) (defn foo [] #_ (skip-me) \"body\")"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      defn_form =
+        Enum.find(ast, fn
+          {:list, [{:symbol, "defn"}, {:symbol, "foo"} | _], _} -> true
+          _ -> false
+        end)
+
+      assert defn_form != nil
+      {:list, [_, _, _, {:string, "body"}], _} = defn_form
+    end
+
+    test "skips vector with #_" do
+      source = "(ns test.comments) (defn foo [] #_ [a b c] \"body\")"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      defn_form =
+        Enum.find(ast, fn
+          {:list, [{:symbol, "defn"}, {:symbol, "foo"} | _], _} -> true
+          _ -> false
+        end)
+
+      assert defn_form != nil
+      {:list, [_, _, _, {:string, "body"}], _} = defn_form
+    end
+
+    test "skips map with #_" do
+      source = "(ns test.comments) (defn foo [] #_ {:key \"value\"} \"body\")"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      defn_form =
+        Enum.find(ast, fn
+          {:list, [{:symbol, "defn"}, {:symbol, "foo"} | _], _} -> true
+          _ -> false
+        end)
+
+      assert defn_form != nil
+      {:list, [_, _, _, {:string, "body"}], _} = defn_form
+    end
+
+    test "multiple #_ in sequence" do
+      source = "(ns test.comments) (defn foo [] #_ (a) #_ (b) \"body\")"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      defn_form =
+        Enum.find(ast, fn
+          {:list, [{:symbol, "defn"}, {:symbol, "foo"} | _], _} -> true
+          _ -> false
+        end)
+
+      assert defn_form != nil
+      {:list, [_, _, _, {:string, "body"}], _} = defn_form
+    end
+
+    test "#_ inside list skips form from list" do
+      source = "(ns test.comments) (defn foo [] (list 1 #_ (skip) 2 3))"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      list_form =
+        Enum.find(ast, fn
+          {:list, [{:symbol, "defn"}, {:symbol, "foo"} | _], _} -> true
+          _ -> false
+        end)
+
+      assert list_form != nil
+
+      {:list, [_, _, _, inner_list], _} = list_form
+      assert {:list, inner_elements} = inner_list
+      # list has symbol + 3 numbers
+      assert length(inner_elements) == 4
+      assert {:symbol, "list"} in inner_elements
+      assert {:number, 1} in inner_elements
+      assert {:number, 2} in inner_elements
+      assert {:number, 3} in inner_elements
+    end
+  end
+
+  describe "comment special form" do
+    test "comment form translates to nil" do
+      source =
+        "(ns test.comments) (defn foo [] (comment (defn bar [] \"ignored\") \"also ignored\"))"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+
+      assert Enum.any?(result, fn
+               {:def, _meta, [{:foo, _fn_meta, _params}, [do: nil]]} -> true
+               _ -> false
+             end)
+    end
+
+    test "comment with single form" do
+      source = "(ns test.comments) (defn foo [] (comment (defn bar [] \"body\")))"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+
+      assert Enum.any?(result, fn
+               {:def, _meta, [{:foo, _fn_meta, _params}, [do: nil]]} -> true
+               _ -> false
+             end)
+    end
+
+    test "nested comment forms" do
+      source = "(ns test.comments) (defn foo [] (comment (comment (defn bar [] \"body\"))))"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+
+      assert Enum.any?(result, fn
+               {:def, _meta, [{:foo, _fn_meta, _params}, [do: nil]]} -> true
+               _ -> false
+             end)
+    end
+
+    test "comment with multiple expressions" do
+      source = "(ns test.comments) (defn foo [] (comment 1 2 3 \"string\" :keyword))"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+
+      assert Enum.any?(result, fn
+               {:def, _meta, [{:foo, _fn_meta, _params}, [do: nil]]} -> true
+               _ -> false
+             end)
+    end
+
+    test "comment inside function definition" do
+      source = "(ns test.comments) (defn foo [] (comment this is ignored) \"body\")"
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+
+      assert Enum.any?(result, fn
+               {:def, _meta, [{:foo, _fn_meta, _params}, [do: "body"]]} -> true
+               _ -> false
+             end)
+    end
+  end
 end
