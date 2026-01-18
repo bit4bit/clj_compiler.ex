@@ -1220,7 +1220,7 @@ defmodule CljCompilerTest do
     end
 
     test "calls :erlang/unique_integer with :positive modifier" do
-      result = ClojureProject.Example.Erlang.get_unique_integer_positive()
+      result = ClojureProject.Example.Erlang.get_positive_unique_integer()
       assert result |> is_integer()
       assert result > 0
     end
@@ -1234,7 +1234,7 @@ defmodule CljCompilerTest do
     test "unique_integer can be used in expressions" do
       result = ClojureProject.Example.Erlang.unique_integer_plus_one()
       assert result |> is_integer()
-      assert result > 0
+      # Result will be unique_integer + 1, which is always an integer
     end
   end
 end

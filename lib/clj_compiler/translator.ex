@@ -929,6 +929,90 @@ defmodule CljCompiler.Translator do
     end
   end
 
+  # Handle Erlang module function calls: (:module/function args...)
+  defp translate_expr(
+         {:list, [{:keyword, module_name}, {:symbol, "/" <> function_name} | args]},
+         _parent_module,
+         _attr_names,
+         _param_names,
+         _local_functions,
+         _namespace_uses,
+         _file
+       ) do
+    # Convert module name keyword to atom (e.g., :erlang -> :erlang)
+    module_atom = module_name
+
+    # Convert function name (remove leading / and convert hyphens to underscores)
+    function_atom =
+      function_name
+      |> String.replace("-", "_")
+      |> String.to_atom()
+
+    # Translate arguments from Clojure data structures to Elixir AST
+    translated_args = Enum.map(args, &translate_erlang_arg/1)
+
+    quote do
+      unquote(module_atom).unquote(function_atom)(unquote_splicing(translated_args))
+    end
+  end
+
+  # Handle Erlang module function calls with line info: (:module/function args...)
+  defp translate_expr(
+         {:list, [{:keyword, module_name}, {:symbol, "/" <> function_name} | args], _line},
+         _parent_module,
+         _attr_names,
+         _param_names,
+         _local_functions,
+         _namespace_uses,
+         _file
+       ) do
+    # Convert module name keyword to atom (e.g., :erlang -> :erlang)
+    module_atom = module_name
+
+    # Convert function name (remove leading / and convert hyphens to underscores)
+    function_atom =
+      function_name
+      |> String.replace("-", "_")
+      |> String.to_atom()
+
+    # Translate arguments from Clojure data structures to Elixir AST
+    translated_args = Enum.map(args, &translate_erlang_arg/1)
+
+    quote do
+      unquote(module_atom).unquote(function_atom)(unquote_splicing(translated_args))
+    end
+  end
+
+  # Helper to translate Clojure data structures to Elixir AST for Erlang calls
+  defp translate_erlang_arg({:vector, elements}) do
+    # Clojure vector -> Elixir list
+    translated_elements = Enum.map(elements, &translate_erlang_arg/1)
+
+    quote do
+      [unquote_splicing(translated_elements)]
+    end
+  end
+
+  defp translate_erlang_arg({:number, value}), do: value
+  defp translate_erlang_arg({:string, value}), do: value
+  defp translate_erlang_arg({:keyword, value}), do: value
+  defp translate_erlang_arg({:symbol, name}), do: {String.to_atom(name), [], Elixir}
+
+  defp translate_erlang_arg({:map, elements}) do
+    # Translate map elements to key-value pairs
+    key_value_pairs =
+      Enum.chunk_every(elements, 2)
+      |> Enum.map(fn [k, v] ->
+        key_ast = translate_erlang_arg(k)
+        value_ast = translate_erlang_arg(v)
+        {key_ast, value_ast}
+      end)
+
+    {:%{}, [], key_value_pairs}
+  end
+
+  defp translate_erlang_arg(arg), do: arg
+
   defp translate_expr(
          {:list, [{:keyword, keyword} | args]},
          parent_module,

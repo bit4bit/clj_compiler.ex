@@ -1,5 +1,4 @@
-(ns fixtures.lib.clj.erlang) (ns example.erlang
-                               (:use [CljCompiler.Compat]))
+(ns example.erlang (:use [CljCompiler.Compat]))
 
 ;; Test basic unique_integer call
 (defn get-unique-integer []
