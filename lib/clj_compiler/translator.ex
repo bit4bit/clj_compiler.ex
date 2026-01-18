@@ -1,6 +1,10 @@
 defmodule CljCompiler.Translator do
   @built_in_ops ~w(+ - * / < > <= >= = == != and or not)
 
+  defp symbol_to_atom(name) when is_binary(name) do
+    name |> String.replace("-", "_") |> String.to_atom()
+  end
+
   def translate(forms, use_clauses, parent_module, file) do
     attr_names = extract_attr_names(forms)
     local_functions = extract_function_names(forms)
@@ -46,7 +50,7 @@ defmodule CljCompiler.Translator do
          _namespace_uses,
          file
        ) do
-    attr_name = name |> String.replace("-", "_") |> String.to_atom()
+    attr_name = symbol_to_atom(name)
     value_ast = translate_expr(value, parent_module, attr_names, [], [], [], file)
 
     {:@, [file: to_charlist(file), line: 1], [{attr_name, [], [value_ast]}]}
@@ -61,7 +65,7 @@ defmodule CljCompiler.Translator do
          _namespace_uses,
          file
        ) do
-    attr_name = name |> String.replace("-", "_") |> String.to_atom()
+    attr_name = symbol_to_atom(name)
     value_ast = translate_expr(value, parent_module, attr_names, [], [], [], file)
 
     {:@, [file: to_charlist(file), line: 1], [{attr_name, [], [value_ast]}]}
@@ -76,7 +80,7 @@ defmodule CljCompiler.Translator do
          namespace_uses,
          file
        ) do
-    function_name = name |> String.replace("-", "_") |> String.to_atom()
+    function_name = symbol_to_atom(name)
 
     param_names = Enum.map(params, fn {:symbol, p} -> p end)
 
@@ -112,7 +116,7 @@ defmodule CljCompiler.Translator do
          namespace_uses,
          file
        ) do
-    function_name = name |> String.replace("-", "_") |> String.to_atom()
+    function_name = symbol_to_atom(name)
 
     param_names = Enum.map(params, fn {:symbol, p} -> p end)
 
