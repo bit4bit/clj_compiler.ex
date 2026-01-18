@@ -1213,4 +1213,28 @@ defmodule CljCompilerTest do
              end)
     end
   end
+
+  describe "Erlang function calls" do
+    test "calls :erlang/unique_integer" do
+      assert ClojureProject.Example.Erlang.get_unique_integer() |> is_integer()
+    end
+
+    test "calls :erlang/unique_integer with :positive modifier" do
+      result = ClojureProject.Example.Erlang.get_unique_integer_positive()
+      assert result |> is_integer()
+      assert result > 0
+    end
+
+    test "multiple :erlang/unique_integer calls return different values" do
+      first = ClojureProject.Example.Erlang.get_unique_integer()
+      second = ClojureProject.Example.Erlang.get_unique_integer()
+      assert first != second
+    end
+
+    test "unique_integer can be used in expressions" do
+      result = ClojureProject.Example.Erlang.unique_integer_plus_one()
+      assert result |> is_integer()
+      assert result > 0
+    end
+  end
 end
