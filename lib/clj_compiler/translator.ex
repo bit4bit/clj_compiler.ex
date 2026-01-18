@@ -303,47 +303,6 @@ defmodule CljCompiler.Translator do
   end
 
   defp translate_expr(
-         {:map, elements},
-         parent_module,
-         attr_names,
-         param_names,
-         local_functions,
-         namespace_uses,
-         file
-       ) do
-    pairs = Enum.chunk_every(elements, 2)
-
-    map_pairs =
-      Enum.map(pairs, fn [key, value] ->
-        key_ast =
-          translate_expr(
-            key,
-            parent_module,
-            attr_names,
-            param_names,
-            local_functions,
-            namespace_uses,
-            file
-          )
-
-        value_ast =
-          translate_expr(
-            value,
-            parent_module,
-            attr_names,
-            param_names,
-            local_functions,
-            namespace_uses,
-            file
-          )
-
-        {key_ast, value_ast}
-      end)
-
-    {:%{}, [], map_pairs}
-  end
-
-  defp translate_expr(
          {:vector, elements},
          parent_module,
          attr_names,
@@ -446,6 +405,210 @@ defmodule CljCompiler.Translator do
         unquote(else_ast)
       end
     end
+  end
+
+  defp translate_expr(
+         {:list, [{:symbol, "throw"}, exception]},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    exception_ast =
+      translate_expr(
+        exception,
+        parent_module,
+        attr_names,
+        param_names,
+        local_functions,
+        namespace_uses,
+        file
+      )
+
+    quote do
+      raise(unquote(exception_ast))
+    end
+  end
+
+  defp translate_expr(
+         {:list, [{:symbol, "try"}, body | clauses]},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    {rescue_clauses, after_clause, body_ast} =
+      process_try_clauses(
+        clauses,
+        body,
+        parent_module,
+        attr_names,
+        param_names,
+        local_functions,
+        namespace_uses,
+        file
+      )
+
+    if after_clause != nil and not Enum.empty?(rescue_clauses) do
+      quote do
+        try do
+          unquote(body_ast)
+        rescue
+          unquote(rescue_clauses)
+        after
+          unquote(after_clause)
+        end
+      end
+    else
+      if after_clause != nil do
+        quote do
+          try do
+            unquote(body_ast)
+          after
+            unquote(after_clause)
+          end
+        end
+      else
+        if not Enum.empty?(rescue_clauses) do
+          quote do
+            try do
+              unquote(body_ast)
+            rescue
+              unquote(rescue_clauses)
+            end
+          end
+        else
+          quote do
+            unquote(body_ast)
+          end
+        end
+      end
+    end
+  end
+
+  defp process_try_clauses(
+         clauses,
+         body,
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    {rescue_clauses, after_clause} =
+      Enum.reduce(clauses, {[], nil}, fn
+        clause, {rescue_acc, after_acc} ->
+          case clause do
+            # Handle catch with exception type and var in list: (catch [ExceptionType var-name] body...)
+            {:list,
+             [
+               {:symbol, "catch"},
+               {:list, [{:symbol, exception_type}, {:symbol, var_name}]} | catch_body
+             ]} ->
+              rescue_clause =
+                process_catch_clause(
+                  exception_type,
+                  var_name,
+                  catch_body,
+                  parent_module,
+                  attr_names,
+                  param_names,
+                  local_functions,
+                  namespace_uses,
+                  file
+                )
+
+              {[rescue_clause | rescue_acc], after_acc}
+
+            # Handle catch with exception type and var as separate args: (catch ExceptionType var-name body...)
+            {:list,
+             [{:symbol, "catch"}, {:symbol, exception_type}, {:symbol, var_name} | catch_body]} ->
+              rescue_clause =
+                process_catch_clause(
+                  exception_type,
+                  var_name,
+                  catch_body,
+                  parent_module,
+                  attr_names,
+                  param_names,
+                  local_functions,
+                  namespace_uses,
+                  file
+                )
+
+              {[rescue_clause | rescue_acc], after_acc}
+
+            {:list, [{:symbol, "finally"} | finally_body]} ->
+              after_ast =
+                translate_body(
+                  finally_body,
+                  parent_module,
+                  attr_names,
+                  param_names,
+                  local_functions,
+                  namespace_uses,
+                  file
+                )
+
+              {rescue_acc, after_ast}
+
+            _ ->
+              {rescue_acc, after_acc}
+          end
+      end)
+
+    body_ast =
+      translate_expr(
+        body,
+        parent_module,
+        attr_names,
+        param_names,
+        local_functions,
+        namespace_uses,
+        file
+      )
+
+    {Enum.reverse(rescue_clauses), after_clause, body_ast}
+  end
+
+  defp process_catch_clause(
+         exception_type,
+         var_name,
+         catch_body,
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    var_ast = {String.to_atom(var_name), [], Elixir}
+    exception_module = {:__aliases__, [alias: false], [String.to_atom(exception_type)]}
+
+    catch_ast =
+      translate_body(
+        catch_body,
+        parent_module,
+        attr_names,
+        param_names ++ [var_name],
+        local_functions,
+        namespace_uses,
+        file
+      )
+
+    # Generate proper Elixir rescue clause structure
+    {:->, [],
+     [
+       [
+         {:in, [context: Elixir, imports: [{2, Kernel}]], [var_ast, exception_module]}
+       ],
+       catch_ast
+     ]}
   end
 
   defp translate_expr(
@@ -556,9 +719,9 @@ defmodule CljCompiler.Translator do
     end
   end
 
-  # Handle calling an expression directly, e.g., ((fn [x] (* x 2)) 5)
+  # Handle calling an anonymous function directly, e.g., ((fn [x] (* x 2)) 5)
   defp translate_expr(
-         {:list, [{:list, _} = fn_expr | args]},
+         {:list, [{:list, [{:symbol, "fn"} | _]} = fn_expr | args]},
          parent_module,
          attr_names,
          param_names,
@@ -594,6 +757,49 @@ defmodule CljCompiler.Translator do
       )
 
     # Generate anonymous function call syntax
+    quote do
+      unquote(fn_ast).(unquote_splicing(translated_args))
+    end
+  end
+
+  # Handle calling the result of a function call, e.g., ((make_adder 5) 3)
+  defp translate_expr(
+         {:list, [{:list, [{:symbol, _} | _]} = fn_expr | args]},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    # Translate the function expression (a function call that returns a function)
+    fn_ast =
+      translate_expr(
+        fn_expr,
+        parent_module,
+        attr_names,
+        param_names,
+        local_functions,
+        namespace_uses,
+        file
+      )
+
+    # Translate arguments
+    translated_args =
+      Enum.map(
+        args,
+        &translate_expr(
+          &1,
+          parent_module,
+          attr_names,
+          param_names,
+          local_functions,
+          namespace_uses,
+          file
+        )
+      )
+
+    # Generate function call syntax
     quote do
       unquote(fn_ast).(unquote_splicing(translated_args))
     end
@@ -744,7 +950,7 @@ defmodule CljCompiler.Translator do
     original_fn_name = fn_name
     fn_name = String.replace(fn_name, "-", "_")
 
-    if String.contains?(fn_name, "/") do
+    if String.contains?(fn_name, "/") and fn_name != "/" do
       [module_name, function_name] = String.split(fn_name, "/")
       module_alias = Module.concat([module_name])
       function_atom = String.to_atom(String.replace(function_name, "-", "_"))
@@ -774,6 +980,97 @@ defmodule CljCompiler.Translator do
 
           quote do
             unquote(function_atom)(unquote_splicing(translated_args))
+          end
+
+        is_exception_constructor?(fn_name) ->
+          exception_module = String.to_atom("Elixir." <> String.replace(fn_name, ".", ""))
+
+          quote do
+            unquote(exception_module).new(unquote_splicing(translated_args))
+          end
+
+        true ->
+          quote do
+            unquote(function_atom)(unquote_splicing(translated_args))
+          end
+      end
+    end
+  end
+
+  defp translate_expr(
+         {:list, [{:symbol, fn_name} | args]},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    validate_function_call!(
+      fn_name,
+      parent_module,
+      attr_names,
+      param_names,
+      local_functions,
+      namespace_uses,
+      file,
+      1
+    )
+
+    translated_args =
+      Enum.map(
+        args,
+        &translate_expr(
+          &1,
+          parent_module,
+          attr_names,
+          param_names,
+          local_functions,
+          namespace_uses,
+          file
+        )
+      )
+
+    original_fn_name = fn_name
+    fn_name = String.replace(fn_name, "-", "_")
+
+    if String.contains?(fn_name, "/") and fn_name != "/" do
+      [module_name, function_name] = String.split(fn_name, "/")
+      module_alias = Module.concat([module_name])
+      function_atom = String.to_atom(String.replace(function_name, "-", "_"))
+
+      quote do
+        unquote(module_alias).unquote(function_atom)(unquote_splicing(translated_args))
+      end
+    else
+      function_atom = String.to_atom(fn_name)
+
+      cond do
+        # Check if calling a variable (could be an anonymous function)
+        fn_name in param_names or String.replace(fn_name, "-", "_") in param_names ->
+          var_ast = {function_atom, [], nil}
+
+          quote do
+            unquote(var_ast).(unquote_splicing(translated_args))
+          end
+
+        fn_name in @built_in_ops ->
+          quote do
+            unquote(function_atom)(unquote_splicing(translated_args))
+          end
+
+        original_fn_name in @built_in_ops ->
+          function_atom = String.to_atom(original_fn_name)
+
+          quote do
+            unquote(function_atom)(unquote_splicing(translated_args))
+          end
+
+        is_exception_constructor?(fn_name) ->
+          exception_module = String.to_atom("Elixir." <> String.replace(fn_name, ".", ""))
+
+          quote do
+            unquote(exception_module).new(unquote_splicing(translated_args))
           end
 
         true ->
@@ -830,7 +1127,7 @@ defmodule CljCompiler.Translator do
       fn_name in @built_in_ops or normalized in @built_in_ops ->
         :ok
 
-      fn_name in ~w(str if let fn) ->
+      fn_name in ~w(str if let fn try throw) or is_exception_constructor?(fn_name) ->
         :ok
 
       String.starts_with?(fn_name, ":") ->
@@ -869,6 +1166,11 @@ defmodule CljCompiler.Translator do
   defp is_compat_function?(fn_name) do
     normalized = String.replace(fn_name, "-", "_")
     normalized in ~w(conj dissoc assoc get assoc_in)
+  end
+
+  defp is_exception_constructor?(fn_name) do
+    String.ends_with?(fn_name, ".") and fn_name != "/" and fn_name != "*" and fn_name != "+" and
+      fn_name != "-"
   end
 
   defp raise_undefined_function_error!(

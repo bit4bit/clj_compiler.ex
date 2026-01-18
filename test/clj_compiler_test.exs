@@ -757,4 +757,243 @@ defmodule CljCompilerTest do
       assert is_list(result)
     end
   end
+
+  describe "try/catch/finally" do
+    test "parses try with catch and finally" do
+      source = """
+      (ns test.try)
+
+      (defn safe-divide [a b]
+        (try
+          (/ a b)
+          (catch ArithmeticError e
+            :infinity)
+          (finally
+            :cleanup)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert {:list, [{:symbol, "ns"}, {:symbol, "test.try"}], _} = List.first(ast)
+
+      assert {:list,
+              [
+                {:symbol, "defn"},
+                {:symbol, "safe-divide"},
+                {:vector, [{:symbol, "a"}, {:symbol, "b"}]},
+                {:list,
+                 [
+                   {:symbol, "try"},
+                   {:list, [{:symbol, "/"}, {:symbol, "a"}, {:symbol, "b"}]},
+                   {:list,
+                    [
+                      {:symbol, "catch"},
+                      {:list, [{:symbol, "ArithmeticException"}, {:symbol, "e"}]},
+                      {:keyword, :infinity}
+                    ]},
+                   {:list, [{:symbol, "finally"}, {:keyword, :cleanup}]}
+                 ], _}
+              ], _} = List.last(ast)
+    end
+
+    test "parses try with multiple catches" do
+      source = """
+      (ns test.try)
+
+      (defn try-multiple [x]
+        (try
+          (if (> x 0)
+            :positive
+            :non-positive)
+          (catch RuntimeError e
+            :caught)
+          (catch ArgumentError e
+            :illegal)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert {:list,
+              [
+                {:symbol, "defn"},
+                {:symbol, "try-multiple"},
+                {:vector, [{:symbol, "x"}]},
+                {:list,
+                 [
+                   {:symbol, "try"},
+                   {:list,
+                    [
+                      {:symbol, "if"},
+                      {:symbol, "x"},
+                      {:keyword, :positive},
+                      {:keyword, :"non-positive"}
+                    ]},
+                   {:list,
+                    [
+                      {:symbol, "catch"},
+                      {:list, [{:symbol, "Exception"}, {:symbol, "e"}]},
+                      {:keyword, :caught}
+                    ]},
+                   {:list,
+                    [
+                      {:symbol, "catch"},
+                      {:list, [{:symbol, "ArgumentError"}, {:symbol, "e"}]},
+                      {:keyword, :illegal}
+                    ]}
+                 ], _}
+              ], _} = List.last(ast)
+    end
+
+    test "parses try without catch" do
+      source = """
+      (ns test.try)
+
+      (defn try-only []
+        (try
+          :result
+          (finally
+            :cleanup)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+
+      assert {:list,
+              [
+                {:symbol, "defn"},
+                {:symbol, "try-only"},
+                {:vector, []},
+                {:list,
+                 [
+                   {:symbol, "try"},
+                   {:keyword, :result},
+                   {:list, [{:symbol, "finally"}, {:keyword, :cleanup}]}
+                 ], _}
+              ], _} = List.last(ast)
+    end
+
+    test "translates try/catch/finally to Elixir try/rescue/after" do
+      source = """
+      (ns test.try)
+
+      (defn safe-divide [a b]
+        (try
+          (/ a b)
+          (catch ArithmeticError e
+            :infinity)
+          (finally
+            :cleanup)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+
+      assert Enum.any?(result, fn
+               {:def, _meta, [{:safe_divide, _fn_meta, _params}, [do: {:try, _, _}]]} -> true
+               _ -> false
+             end)
+    end
+
+    test "translates try with multiple catches" do
+      source = """
+      (ns test.try)
+
+      (defn multi-catch [x]
+        (try
+          (if (> x 0)
+            :positive
+            :non-positive)
+          (catch RuntimeError e
+            :caught)
+          (catch ArgumentError e
+            :illegal)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "translates try with let binding" do
+      source = """
+      (ns test.try)
+
+      (defn try-let [x]
+        (try
+          (let [result (/ 1 x)]
+            result)
+          (catch ArithmeticError e
+            :error)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "translates nested try" do
+      source = """
+      (ns test.try)
+
+      (defn nested []
+        (try
+          (try
+            (/ 1 0)
+            (catch ArithmeticError e
+              :inner))
+          (catch RuntimeError e
+            :outer)))
+      """
+
+      ast = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+  end
+
+  defmodule TryProject do
+    use CljCompiler, dir: "test/fixtures/lib/clj/test_try"
+
+    def safe_divide(a, b), do: a / b
+  end
+
+  test "try/catch/finally integration - catch exception" do
+    assert TryProject.TestTry.Core.safe_divide(1, 0) == :infinity
+  end
+
+  test "try/catch/finally integration - normal execution" do
+    assert TryProject.TestTry.Core.safe_divide(10, 2) == 5.0
+  end
+
+  test "try/catch/finally integration - multiple catches" do
+    assert TryProject.TestTry.Core.try_with_multiple_catches(1) == :positive
+    assert TryProject.TestTry.Core.try_with_multiple_catches(0) == :non_positive
+  end
+
+  test "try/catch/finally integration - without catch" do
+    result = TryProject.TestTry.Core.try_without_catch()
+    assert result == :result
+  end
+
+  test "try/catch/finally integration - nested try" do
+    assert TryProject.TestTry.Core.nested_try(0) == :inner_caught
+    assert TryProject.TestTry.Core.nested_try(1) == 1.0
+  end
+
+  test "try/catch/finally integration - try with let" do
+    assert TryProject.TestTry.Core.try_with_let(0) == :error
+    assert TryProject.TestTry.Core.try_with_let(2) == 0.5
+  end
+
+  test "try/catch/finally integration - only finally" do
+    assert TryProject.TestTry.Core.try_only_finally() == :success
+  end
+
+  test "try/catch/finally integration - only catch" do
+    assert TryProject.TestTry.Core.try_only_catch() == :normal
+  end
 end
