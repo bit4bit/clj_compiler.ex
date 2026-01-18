@@ -34,8 +34,8 @@ defmodule CljCompiler do
   end
 
   defp compile_file(content, parent_module, file) do
-    ast = CljCompiler.Reader.parse(content, file)
-    extract_modules(ast, parent_module, file)
+    {:ok, forms} = CljCompiler.Reader.parse(content, file)
+    extract_modules(forms, parent_module, file)
   end
 
   defp extract_modules(forms, parent_module, file) do

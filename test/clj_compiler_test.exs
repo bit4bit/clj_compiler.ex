@@ -189,7 +189,7 @@ defmodule CljCompilerTest do
     test "parses valid nested lists without errors" do
       source = "(sum (mul 2 2))"
 
-      result = CljCompiler.Reader.parse(source, "example.clj")
+      {:ok, result} = CljCompiler.Reader.parse(source, "example.clj")
       assert is_list(result)
     end
   end
@@ -219,7 +219,7 @@ defmodule CljCompilerTest do
     (defn process_map [m] m)
     """
 
-    ast = CljCompiler.Reader.parse(source, "test_maps.clj")
+    {:ok, ast} = CljCompiler.Reader.parse(source, "test_maps.clj")
 
     assert [
              {:list, [{:symbol, "ns"}, {:symbol, "test.maps"}], _},
@@ -358,8 +358,10 @@ defmodule CljCompilerTest do
 
     error =
       assert_raise CompileError, fn ->
+        {:ok, forms} = CljCompiler.Reader.parse(source, "test.clj")
+
         CljCompiler.Translator.translate(
-          CljCompiler.Reader.parse(source, "test.clj"),
+          forms,
           [],
           TestModule,
           "test.clj"
@@ -380,7 +382,7 @@ defmodule CljCompilerTest do
     (defn get-max [] max-size)
     """
 
-    ast = CljCompiler.Reader.parse(source, "test.clj")
+    {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
     result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
     assert Enum.any?(result, fn
@@ -396,7 +398,7 @@ defmodule CljCompilerTest do
     (defn foo [x] x)
     """
 
-    ast = CljCompiler.Reader.parse(source, "test/example.clj")
+    {:ok, ast} = CljCompiler.Reader.parse(source, "test/example.clj")
     result = CljCompiler.Translator.translate(ast, [], TestModule, "test/example.clj")
 
     assert Enum.any?(result, fn
@@ -434,8 +436,10 @@ defmodule CljCompilerTest do
 
       error =
         assert_raise CompileError, fn ->
+          {:ok, forms} = CljCompiler.Reader.parse(source, "test.clj")
+
           CljCompiler.Translator.translate(
-            CljCompiler.Reader.parse(source, "test.clj"),
+            forms,
             [],
             TestModule,
             "test.clj"
@@ -456,7 +460,7 @@ defmodule CljCompilerTest do
       (defn calculate [x] (helper x))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -471,8 +475,10 @@ defmodule CljCompilerTest do
 
       error =
         assert_raise CompileError, fn ->
+          {:ok, forms} = CljCompiler.Reader.parse(source, "test.clj")
+
           CljCompiler.Translator.translate(
-            CljCompiler.Reader.parse(source, "test.clj"),
+            forms,
             [],
             TestModule,
             "test.clj"
@@ -490,7 +496,7 @@ defmodule CljCompilerTest do
       (defn calculate [x] (TestModule/do_sum x 1))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -503,7 +509,7 @@ defmodule CljCompilerTest do
       (defn process [lst] (conj lst 1))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
 
       result =
         CljCompiler.Translator.translate(
@@ -525,8 +531,10 @@ defmodule CljCompilerTest do
 
       error =
         assert_raise CompileError, fn ->
+          {:ok, forms} = CljCompiler.Reader.parse(source, "test.clj")
+
           CljCompiler.Translator.translate(
-            CljCompiler.Reader.parse(source, "test.clj"),
+            forms,
             [],
             TestModule,
             "test.clj"
@@ -545,8 +553,10 @@ defmodule CljCompilerTest do
 
       error =
         assert_raise CompileError, fn ->
+          {:ok, forms} = CljCompiler.Reader.parse(source, "test.clj")
+
           CljCompiler.Translator.translate(
-            CljCompiler.Reader.parse(source, "test.clj"),
+            forms,
             [],
             TestModule,
             "test.clj"
@@ -565,8 +575,10 @@ defmodule CljCompilerTest do
 
       error =
         assert_raise CompileError, fn ->
+          {:ok, forms} = CljCompiler.Reader.parse(source, "test.clj")
+
           CljCompiler.Translator.translate(
-            CljCompiler.Reader.parse(source, "test.clj"),
+            forms,
             [],
             TestModule,
             "test.clj"
@@ -583,7 +595,7 @@ defmodule CljCompilerTest do
       (defn calculate [x] (+ x 1))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -596,7 +608,7 @@ defmodule CljCompilerTest do
       (defn calculate [lst] (Enum/count lst))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -660,7 +672,7 @@ defmodule CljCompilerTest do
       (defn test_immediate [] ((fn [x] (* x 2)) 5))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -673,7 +685,7 @@ defmodule CljCompilerTest do
       (defn test_let [] (let [f (fn [x] (* x 2))] (f 5)))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -686,7 +698,7 @@ defmodule CljCompilerTest do
       (defn make_adder [n] (fn [x] (+ x n)))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -699,7 +711,7 @@ defmodule CljCompilerTest do
       (defn test_no_params [] ((fn [] 42)))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -712,7 +724,7 @@ defmodule CljCompilerTest do
       (defn test_multi [] ((fn [a b c] (+ a (+ b c))) 1 2 3))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -725,7 +737,7 @@ defmodule CljCompilerTest do
       (defn make_multiplier [n] (fn [x] (* x n)))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -738,7 +750,7 @@ defmodule CljCompilerTest do
       (defn test_nested [] ((fn [x] ((fn [y] (+ x y)) 3)) 5))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -751,7 +763,7 @@ defmodule CljCompilerTest do
       (defn test_complex [] ((fn [x] (if (> x 0) (* x 2) 0)) 5))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -772,7 +784,7 @@ defmodule CljCompilerTest do
             :cleanup)))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
 
       assert {:list, [{:symbol, "ns"}, {:symbol, "test.try"}], _} = List.first(ast)
 
@@ -810,7 +822,7 @@ defmodule CljCompilerTest do
             :illegal)))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
 
       assert {:list,
               [
@@ -852,7 +864,7 @@ defmodule CljCompilerTest do
             :cleanup)))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
 
       assert {:list,
               [
@@ -880,7 +892,7 @@ defmodule CljCompilerTest do
             :cleanup)))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -906,7 +918,7 @@ defmodule CljCompilerTest do
             :illegal)))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -924,7 +936,7 @@ defmodule CljCompilerTest do
             :error)))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -944,7 +956,7 @@ defmodule CljCompilerTest do
             :outer)))
       """
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -997,7 +1009,7 @@ defmodule CljCompilerTest do
     test "parses line comment at end of line" do
       source = "(ns test.comments)\n(defn foo [] \"body\" ; this is a comment\n)"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
 
       assert [
                {:list, [{:symbol, "ns"}, {:symbol, "test.comments"}], _},
@@ -1008,7 +1020,7 @@ defmodule CljCompilerTest do
     test "parses code with semicolon in string" do
       source = "(ns test.comments) (defn foo [] \"string with ; semicolon\")"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
 
       assert {:list, [_, _, _, {:string, "string with ; semicolon"}], _} = List.last(ast)
     end
@@ -1016,7 +1028,7 @@ defmodule CljCompilerTest do
     test "parses multiple comments on same line" do
       source = "(ns test.comments) ; first comment\n (defn foo [] \"body\")"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
 
       assert [
                {:list, [{:symbol, "ns"}, {:symbol, "test.comments"}], _},
@@ -1027,7 +1039,7 @@ defmodule CljCompilerTest do
     test "comment inside list is stripped" do
       source = "(ns test.comments) (defn foo [] (list 1 2 ; inner comment\n 3))"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
 
       defn_form =
         Enum.find(ast, fn
@@ -1048,7 +1060,7 @@ defmodule CljCompilerTest do
     test "skips next form with #_" do
       source = "(ns test.comments) (defn foo [] #_ (skip-me) \"body\")"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
 
       defn_form =
         Enum.find(ast, fn
@@ -1063,7 +1075,7 @@ defmodule CljCompilerTest do
     test "skips vector with #_" do
       source = "(ns test.comments) (defn foo [] #_ [a b c] \"body\")"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
 
       defn_form =
         Enum.find(ast, fn
@@ -1078,7 +1090,7 @@ defmodule CljCompilerTest do
     test "skips map with #_" do
       source = "(ns test.comments) (defn foo [] #_ {:key \"value\"} \"body\")"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
 
       defn_form =
         Enum.find(ast, fn
@@ -1093,7 +1105,7 @@ defmodule CljCompilerTest do
     test "multiple #_ in sequence" do
       source = "(ns test.comments) (defn foo [] #_ (a) #_ (b) \"body\")"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
 
       defn_form =
         Enum.find(ast, fn
@@ -1108,7 +1120,7 @@ defmodule CljCompilerTest do
     test "#_ inside list skips form from list" do
       source = "(ns test.comments) (defn foo [] (list 1 #_ (skip) 2 3))"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
 
       list_form =
         Enum.find(ast, fn
@@ -1134,7 +1146,7 @@ defmodule CljCompilerTest do
       source =
         "(ns test.comments) (defn foo [] (comment (defn bar [] \"ignored\") \"also ignored\"))"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -1148,7 +1160,7 @@ defmodule CljCompilerTest do
     test "comment with single form" do
       source = "(ns test.comments) (defn foo [] (comment (defn bar [] \"body\")))"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -1162,7 +1174,7 @@ defmodule CljCompilerTest do
     test "nested comment forms" do
       source = "(ns test.comments) (defn foo [] (comment (comment (defn bar [] \"body\"))))"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -1176,7 +1188,7 @@ defmodule CljCompilerTest do
     test "comment with multiple expressions" do
       source = "(ns test.comments) (defn foo [] (comment 1 2 3 \"string\" :keyword))"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)
@@ -1190,7 +1202,7 @@ defmodule CljCompilerTest do
     test "comment inside function definition" do
       source = "(ns test.comments) (defn foo [] (comment this is ignored) \"body\")"
 
-      ast = CljCompiler.Reader.parse(source, "test.clj")
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
       result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
 
       assert is_list(result)

@@ -1,810 +1,631 @@
 defmodule CljCompiler.Reader do
+  @moduledoc """
+  Reader module for parsing Clojure source code into forms.
+
+  Uses NimbleParsec-based Lexer and Parser for efficient, composable parsing.
+  """
+
   defmodule ParseError do
-    defexception [:message, :line, :column, :file]
+    defexception [:message, :line, :column, :file, :reason]
 
     def exception(opts) do
       line = Keyword.get(opts, :line, 1)
       column = Keyword.get(opts, :column, 1)
       file = Keyword.get(opts, :file, "unknown")
-      reason = Keyword.fetch!(opts, :reason)
+      reason = Keyword.get(opts, :reason, "parse error")
 
       message = """
       Parse error at line #{line}, column #{column} in #{file}:
       #{reason}
       """
 
-      %__MODULE__{message: message, line: line, column: column, file: file}
+      %__MODULE__{message: message, line: line, column: column, file: file, reason: reason}
     end
   end
 
-  def parse(source, file \\ "clj_file") do
+  @doc """
+  Parse Clojure source code into forms.
+  """
+  def parse(source, file \\ "clj_file") when is_binary(source) do
     source
     |> String.trim()
-    |> tokenize_with_positions()
-    |> parse_tokens(file)
+    |> do_parse(file)
   end
 
-  defp tokenize_with_positions(source) do
-    tokenize_impl(source, [], "", false, false, 1, 1, 1, 1)
-  end
-
-  defp tokenize_impl(
-         "",
-         acc,
-         _current,
-         _in_string,
-         true,
-         _line,
-         _col,
-         _token_line,
-         _token_col
-       ) do
-    Enum.reverse(acc)
-  end
-
-  defp tokenize_impl(
-         "",
-         acc,
-         _current,
-         _in_string,
-         _in_comment,
-         _line,
-         _col,
-         _token_line,
-         _token_col
-       ) do
-    Enum.reverse(acc)
-  end
-
-  defp tokenize_impl(
-         <<char::utf8, rest::binary>>,
-         acc,
-         _current,
-         false,
-         true,
-         line,
-         col,
-         _tl,
-         _tc
-       ) do
-    if char == ?\n do
-      tokenize_impl(rest, acc, "", false, false, line + 1, 1, line + 1, 1)
-    else
-      tokenize_impl(rest, acc, "", false, true, line, col + 1, line, col)
+  @doc """
+  Parse tokens into forms (public API for token lists).
+  """
+  def parse_tokens(tokens, file \\ "clj_file") when is_list(tokens) do
+    case do_parse_tokens(tokens, file, []) do
+      {:ok, forms} -> {:ok, forms}
+      {:error, %ParseError{} = e} -> {:error, e}
     end
   end
 
-  defp tokenize_impl("\n" <> rest, acc, current, in_string, _in_comment, line, _col, _tl, _tc) do
-    if in_string do
-      tokenize_impl(rest, [], "", true, false, line + 1, 1, line + 1, 1)
-    else
-      acc = if current != "", do: [current | acc], else: acc
-      tokenize_impl(rest, acc, "", false, false, line + 1, 1, line + 1, 1)
+  # --- Private helper functions ---
+
+  defp do_parse(source, file) do
+    case CljCompiler.Lexer.tokenize(source) do
+      {:ok, tokens} ->
+        # Add line and column positions to tokens
+        tokens_with_pos = add_token_positions(tokens, source)
+        do_parse_tokens(tokens_with_pos, file, [])
+
+      {:error, reason, line, column} ->
+        raise ParseError, reason: reason, line: line, column: column, file: file
     end
   end
 
-  defp tokenize_impl(";" <> rest, acc, current, true, false, line, col, tl, tc) do
-    tokenize_impl(rest, acc, current <> ";", true, false, line, col + 1, tl, tc)
+  defp add_token_positions(tokens, source) do
+    # Split source into lines and track line/column for each token
+    lines = String.split(source, "\n", parts: :infinity)
+
+    {tokens_with_pos, _} =
+      Enum.reduce(tokens, {[], {1, 1, 0, lines}}, fn token,
+                                                     {acc, {line, col, char_offset, src_lines}} ->
+        # Find the next non-whitespace/comment character position in source
+        {new_line, new_col, new_offset} =
+          find_next_token_position(source, char_offset, line, col, src_lines)
+
+        token_with_pos =
+          case token do
+            {tag, value} when is_list(value) ->
+              {tag, value, new_line, new_col}
+
+            {tag, value} ->
+              {tag, value, new_line, new_col}
+
+            tag when is_atom(tag) ->
+              {tag, nil, new_line, new_col}
+
+            other ->
+              other
+          end
+
+        # Advance offset by approximate token length
+        token_length = estimate_token_length(token)
+        next_offset = new_offset + token_length
+
+        {next_line, next_col} =
+          advance_position(source, new_offset, next_offset, new_line, new_col)
+
+        {[token_with_pos | acc], {next_line, next_col, next_offset, src_lines}}
+      end)
+
+    Enum.reverse(tokens_with_pos)
   end
 
-  defp tokenize_impl(";" <> rest, acc, "", false, false, line, col, _tl, _tc) do
-    tokenize_impl(rest, acc, "", false, true, line, col + 1, line, col)
-  end
+  defp find_next_token_position(source, offset, line, col, _lines) do
+    # Skip whitespace and comments to find next token
+    case String.slice(source, offset..-1//1) do
+      "" ->
+        {line, col, offset}
 
-  defp tokenize_impl(";" <> rest, acc, current, false, false, line, col, tl, tc) do
-    acc = if current != "", do: [current | acc], else: acc
-    tokenize_impl(rest, acc, "", false, true, line, col + 1, tl, tc)
-  end
+      rest ->
+        skip_result = skip_whitespace_and_comments(rest, 0, line, col)
 
-  defp tokenize_impl("#_" <> rest, acc, "", false, false, line, col, _tl, _tc) do
-    tokenize_impl(rest, [{:skip, line, col} | acc], "", false, false, line, col + 2, line, col)
-  end
-
-  defp tokenize_impl("#_" <> rest, acc, current, false, false, line, col, tl, tc) do
-    acc = if current != "", do: [current | acc], else: acc
-    tokenize_impl(rest, [{:skip, line, col} | acc], "", false, false, line, col + 2, tl, tc)
-  end
-
-  defp tokenize_impl("\"" <> rest, acc, current, false, false, line, col, _tl, _tc) do
-    acc = if current != "", do: [current | acc], else: acc
-    tokenize_impl(rest, acc, "\"", true, false, line, col + 1, line, col)
-  end
-
-  defp tokenize_impl("\"" <> rest, acc, current, true, false, line, col, _tl, _tc) do
-    tokenize_impl(rest, [current <> "\"" | acc], "", false, false, line, col + 1, line, col)
-  end
-
-  defp tokenize_impl(<<char::utf8, rest::binary>>, acc, current, true, false, line, col, tl, tc) do
-    tokenize_impl(rest, acc, current <> <<char::utf8>>, true, false, line, col + 1, tl, tc)
-  end
-
-  defp tokenize_impl(
-         <<char::utf8, rest::binary>>,
-         acc,
-         _current,
-         false,
-         true,
-         line,
-         col,
-         _tl,
-         _tc
-       ) do
-    if char == ?\n do
-      tokenize_impl(rest, acc, "", false, false, line + 1, 1, line + 1, 1)
-    else
-      tokenize_impl(rest, acc, "", false, true, line, col + 1, line, col)
+        case skip_result do
+          {new_line, new_col, skip_count} ->
+            {new_line, new_col, offset + skip_count}
+        end
     end
   end
 
-  defp tokenize_impl("(" <> rest, acc, current, false, false, line, col, _tl, _tc) do
-    acc = if current != "", do: [current | acc], else: acc
+  defp skip_whitespace_and_comments(str, count, line, col) do
+    case str do
+      <<?\s, rest::binary>> ->
+        skip_whitespace_and_comments(rest, count + 1, line, col + 1)
 
-    tokenize_impl(
-      rest,
-      [{:paren_open, line, col} | acc],
-      "",
-      false,
-      false,
-      line,
-      col + 1,
-      line,
-      col
-    )
+      <<?\t, rest::binary>> ->
+        skip_whitespace_and_comments(rest, count + 1, line, col + 1)
+
+      <<?\r, rest::binary>> ->
+        skip_whitespace_and_comments(rest, count + 1, line, col)
+
+      <<?\n, rest::binary>> ->
+        skip_whitespace_and_comments(rest, count + 1, line + 1, 1)
+
+      <<?;, rest::binary>> ->
+        # Skip until end of line
+        {skip_len, new_line, new_col} = skip_until_newline(rest, 0, line, col + 1)
+
+        skip_whitespace_and_comments(
+          String.slice(rest, skip_len..-1//1),
+          count + 1 + skip_len,
+          new_line,
+          new_col
+        )
+
+      _ ->
+        {line, col, count}
+    end
   end
 
-  defp tokenize_impl(")" <> rest, acc, current, false, false, line, col, _tl, _tc) do
-    acc = if current != "", do: [current | acc], else: acc
-
-    tokenize_impl(
-      rest,
-      [{:paren_close, line, col} | acc],
-      "",
-      false,
-      false,
-      line,
-      col + 1,
-      line,
-      col
-    )
+  defp skip_until_newline(str, count, line, col) do
+    case str do
+      <<?\n, _::binary>> -> {count + 1, line + 1, 1}
+      <<_, rest::binary>> -> skip_until_newline(rest, count + 1, line, col + 1)
+      "" -> {count, line, col}
+    end
   end
 
-  defp tokenize_impl("[" <> rest, acc, current, false, false, line, col, _tl, _tc) do
-    acc = if current != "", do: [current | acc], else: acc
+  defp estimate_token_length({_tag, value}) when is_list(value), do: length(value)
+  defp estimate_token_length({_tag, value}) when is_integer(value), do: 1
+  defp estimate_token_length({_tag, _value}), do: 1
+  defp estimate_token_length(_), do: 1
 
-    tokenize_impl(
-      rest,
-      [{:bracket_open, line, col} | acc],
-      "",
-      false,
-      false,
-      line,
-      col + 1,
-      line,
-      col
-    )
+  defp advance_position(source, from_offset, to_offset, line, col) do
+    slice = String.slice(source, from_offset, to_offset - from_offset)
+
+    String.graphemes(slice)
+    |> Enum.reduce({line, col}, fn
+      "\n", {l, _c} -> {l + 1, 1}
+      _, {l, c} -> {l, c + 1}
+    end)
   end
 
-  defp tokenize_impl("]" <> rest, acc, current, false, false, line, col, _tl, _tc) do
-    acc = if current != "", do: [current | acc], else: acc
-
-    tokenize_impl(
-      rest,
-      [{:bracket_close, line, col} | acc],
-      "",
-      false,
-      false,
-      line,
-      col + 1,
-      line,
-      col
-    )
+  defp do_parse_tokens(tokens, file, acc) do
+    do_parse_tokens(tokens, file, acc, [])
   end
 
-  defp tokenize_impl("{" <> rest, acc, current, false, false, line, col, _tl, _tc) do
-    acc = if current != "", do: [current | acc], else: acc
+  defp do_parse_tokens(tokens, file, acc, stack) do
+    case tokens do
+      [] ->
+        # Check if there are unclosed delimiters
+        case stack do
+          [] ->
+            {:ok, Enum.reverse(acc)}
 
-    tokenize_impl(
-      rest,
-      [{:brace_open, line, col} | acc],
-      "",
-      false,
-      false,
-      line,
-      col + 1,
-      line,
-      col
-    )
+          _stack ->
+            # Report the outermost (last) unclosed delimiter
+            {delimiter_type, open_line, open_col} = List.last(stack)
+
+            delimiter_name =
+              case delimiter_type do
+                :paren -> "parenthesis"
+                :bracket -> "bracket"
+                :brace -> "brace"
+              end
+
+            raise ParseError,
+              reason:
+                "Missing closing #{delimiter_name} for opening at line #{open_line}, column #{open_col} in #{file}",
+              line: open_line,
+              column: open_col,
+              file: file
+        end
+
+      [{:discard, _value, _line, _col} | rest] ->
+        {_skip, remaining} = skip_next_form(rest, stack)
+        do_parse_tokens(remaining, file, acc, stack)
+
+      [{:paren_open, _value, line, col} | rest] ->
+        new_stack = [{:paren, line, col} | stack]
+        {form, remaining, final_stack} = parse_list(rest, [], false, new_stack, file)
+        do_parse_tokens(remaining, file, [{:list, form, line} | acc], final_stack)
+
+      [{:bracket_open, _value, line, col} | rest] ->
+        new_stack = [{:bracket, line, col} | stack]
+        {form, remaining, final_stack} = parse_vector(rest, [], false, new_stack, file)
+        do_parse_tokens(remaining, file, [{:vector, form, line} | acc], final_stack)
+
+      [{:brace_open, _value, line, col} | rest] ->
+        new_stack = [{:brace, line, col} | stack]
+        {form, remaining, final_stack} = parse_map(rest, [], false, new_stack, file)
+        do_parse_tokens(remaining, file, [{:map, form, line} | acc], final_stack)
+
+      [{:paren_close, _value, line, col} | _rest] ->
+        case stack do
+          [] ->
+            raise ParseError,
+              reason: "Unexpected closing parenthesis; no matching opening found in #{file}",
+              line: line,
+              column: col,
+              file: file
+
+          [{open_type, open_line, open_col} | _] ->
+            expected =
+              case open_type do
+                :paren -> "closing parenthesis"
+                :bracket -> "closing bracket"
+                :brace -> "closing brace"
+              end
+
+            raise ParseError,
+              reason:
+                "Unexpected closing parenthesis; expected #{expected} for opening at line #{open_line}, column #{open_col} in #{file}",
+              line: line,
+              column: col,
+              file: file
+        end
+
+      [{:bracket_close, _value, line, col} | _rest] ->
+        case stack do
+          [] ->
+            raise ParseError,
+              reason: "Unexpected closing bracket; no matching opening found in #{file}",
+              line: line,
+              column: col,
+              file: file
+
+          [{open_type, open_line, open_col} | _] ->
+            expected =
+              case open_type do
+                :paren -> "closing parenthesis"
+                :bracket -> "closing bracket"
+                :brace -> "closing brace"
+              end
+
+            raise ParseError,
+              reason:
+                "Unexpected closing bracket; expected #{expected} for opening at line #{open_line}, column #{open_col} in #{file}",
+              line: line,
+              column: col,
+              file: file
+        end
+
+      [{:brace_close, _value, line, col} | _rest] ->
+        case stack do
+          [] ->
+            raise ParseError,
+              reason: "Unexpected closing brace; no matching opening found in #{file}",
+              line: line,
+              column: col,
+              file: file
+
+          [{open_type, open_line, open_col} | _] ->
+            expected =
+              case open_type do
+                :paren -> "closing parenthesis"
+                :bracket -> "closing bracket"
+                :brace -> "closing brace"
+              end
+
+            raise ParseError,
+              reason:
+                "Unexpected closing brace; expected #{expected} for opening at line #{open_line}, column #{open_col} in #{file}",
+              line: line,
+              column: col,
+              file: file
+        end
+
+      [token | rest] ->
+        do_parse_tokens(rest, file, [parse_atom(token) | acc], stack)
+    end
   end
 
-  defp tokenize_impl("}" <> rest, acc, current, false, false, line, col, _tl, _tc) do
-    acc = if current != "", do: [current | acc], else: acc
-
-    tokenize_impl(
-      rest,
-      [{:brace_close, line, col} | acc],
-      "",
-      false,
-      false,
-      line,
-      col + 1,
-      line,
-      col
-    )
+  # --- Skip next form (handles #_ discard) ---
+  defp skip_next_form([{:paren_open, _value, line, col} | rest], stack) do
+    new_stack = [{:paren, line, col} | stack]
+    {_form, remaining, _final_stack} = parse_list(rest, [], false, new_stack, "clj")
+    {:skip, remaining}
   end
 
-  defp tokenize_impl(
-         <<char::utf8, rest::binary>>,
-         acc,
-         current,
-         false,
-         false,
-         line,
-         col,
-         _tl,
-         _tc
-       )
-       when char in [?\s, ?\t, ?\r] do
-    acc = if current != "", do: [current | acc], else: acc
-    tokenize_impl(rest, acc, "", false, false, line, col + 1, line, col + 1)
+  defp skip_next_form([{:bracket_open, _value, line, col} | rest], stack) do
+    new_stack = [{:bracket, line, col} | stack]
+    {_form, remaining, _final_stack} = parse_vector(rest, [], false, new_stack, "clj")
+    {:skip, remaining}
   end
 
-  defp tokenize_impl(<<char::utf8, rest::binary>>, acc, current, false, false, line, col, tl, tc) do
-    token_line = if current == "", do: line, else: tl
-    token_col = if current == "", do: col, else: tc
-
-    tokenize_impl(
-      rest,
-      acc,
-      current <> <<char::utf8>>,
-      false,
-      false,
-      line,
-      col + 1,
-      token_line,
-      token_col
-    )
+  defp skip_next_form([{:brace_open, _value, line, col} | rest], stack) do
+    new_stack = [{:brace, line, col} | stack]
+    {_form, remaining, _final_stack} = parse_map(rest, [], false, new_stack, "clj")
+    {:skip, remaining}
   end
 
-  defp parse_tokens(tokens, file) do
-    try do
-      {forms, remaining_stack} = parse_forms(tokens, [], file, [])
+  defp skip_next_form([_token | rest], _stack), do: {:skip, rest}
 
-      case remaining_stack do
-        [] ->
-          forms
+  # --- List parsing ---
+  defp parse_list([], _acc, _nested, stack, file) do
+    # EOF with unclosed list - report outermost delimiter
+    {delimiter_type, open_line, open_col} = List.last(stack)
 
-        stack ->
-          {type, open_line, open_col} = find_outermost(stack)
-
-          raise ParseError,
-            reason: get_unclosed_error_message(open_line, open_col, file, type),
-            line: open_line,
-            column: open_col,
-            file: file
+    delimiter_name =
+      case delimiter_type do
+        :paren -> "parenthesis"
+        :bracket -> "bracket"
+        :brace -> "brace"
       end
-    catch
-      :error, %ParseError{} = e -> reraise e, __STACKTRACE__
-    end
-  end
 
-  # Keep for potential future use
-
-  # Stack helper functions for tracking opening delimiters
-  defp push_delimiter(stack, type, line, col), do: [{type, line, col} | stack]
-
-  defp pop_delimiter([{type, _open_line, _open_col} | rest], actual_type, _line, _col, _file)
-       when type == actual_type,
-       do: {:ok, rest}
-
-  defp pop_delimiter([{expected_type, open_line, open_col} | _], actual_type, line, col, _file)
-       when expected_type != actual_type,
-       do: {:mismatch, actual_type, line, col, expected_type, open_line, open_col}
-
-  defp pop_delimiter([], actual_type, line, col, _file),
-    do: {:unmatched, actual_type, line, col}
-
-  defp find_outermost(stack) do
-    Enum.min_by(stack, fn {_, line, col} -> {line, col} end)
-  end
-
-  defp format_delimiter_type(:paren), do: "parenthesis"
-  defp format_delimiter_type(:bracket), do: "bracket"
-  defp format_delimiter_type(:brace), do: "brace"
-
-  defp get_unclosed_error_message(open_line, open_col, file, type) do
-    "Missing closing #{format_delimiter_type(type)} for opening at line #{open_line}, column #{open_col} in #{file}"
-  end
-
-  defp get_mismatch_error_message(
-         _close_line,
-         _close_col,
-         file,
-         actual_type,
-         expected_type,
-         open_line,
-         open_col
-       ) do
-    "Unexpected closing #{format_delimiter_type(actual_type)}; expected closing #{format_delimiter_type(expected_type)} for opening at line #{open_line}, column #{open_col} in #{file}"
-  end
-
-  defp get_unmatched_error_message(_line, _col, file, type) do
-    "Unexpected closing #{format_delimiter_type(type)}; no matching opening found in #{file}"
-  end
-
-  defp parse_forms([], acc, _file, stack), do: {Enum.reverse(acc), stack}
-
-  defp parse_forms([{:skip, _line, _col} | rest], acc, file, stack) do
-    {_form, remaining, new_stack} = skip_next_form(rest, file, stack)
-    parse_forms(remaining, acc, file, new_stack)
-  end
-
-  defp parse_forms([{:paren_open, line, col} | rest], acc, file, stack) do
-    {form, remaining, new_stack} =
-      parse_list(rest, [], file, push_delimiter(stack, :paren, line, col))
-
-    parse_forms(remaining, [{:list, form, line} | acc], file, new_stack)
-  end
-
-  defp parse_forms([{:bracket_open, line, col} | rest], acc, file, stack) do
-    {form, remaining, new_stack} =
-      parse_vector(rest, [], file, push_delimiter(stack, :bracket, line, col))
-
-    parse_forms(remaining, [{:vector, form, line} | acc], file, new_stack)
-  end
-
-  defp parse_forms([{:brace_open, line, col} | rest], acc, file, stack) do
-    {form, remaining, new_stack} =
-      parse_map(rest, [], file, push_delimiter(stack, :brace, line, col))
-
-    parse_forms(remaining, [{:map, form, line} | acc], file, new_stack)
-  end
-
-  defp parse_forms([{:paren_close, line, col} | _rest], _acc, file, _stack) do
     raise ParseError,
-      reason: get_unmatched_error_message(line, col, file, :paren),
-      line: line,
-      column: col,
+      reason:
+        "Missing closing #{delimiter_name} for opening at line #{open_line}, column #{open_col} in #{file}",
+      line: open_line,
+      column: open_col,
       file: file
   end
 
-  defp parse_forms([{:bracket_close, line, col} | _rest], _acc, file, _stack) do
+  defp parse_list([{:paren_close, _value, _line, _col} | rest], acc, _nested, stack, _file) do
+    # Pop the matching delimiter from stack
+    case stack do
+      [{:paren, _open_line, _open_col} | remaining_stack] ->
+        {Enum.reverse(acc), rest, remaining_stack}
+
+      _ ->
+        {Enum.reverse(acc), rest, stack}
+    end
+  end
+
+  defp parse_list([{:bracket_close, _value, line, col} | _rest], _acc, _nested, stack, file) do
+    case stack do
+      [{:paren, open_line, open_col} | _] ->
+        raise ParseError,
+          reason:
+            "Unexpected closing bracket; expected closing parenthesis for opening at line #{open_line}, column #{open_col} in #{file}",
+          line: line,
+          column: col,
+          file: file
+
+      _ ->
+        raise ParseError,
+          reason: "mismatched bracket in list",
+          line: line,
+          column: col,
+          file: file
+    end
+  end
+
+  defp parse_list([{:brace_close, _value, line, col} | _rest], _acc, _nested, stack, file) do
+    case stack do
+      [{:paren, open_line, open_col} | _] ->
+        raise ParseError,
+          reason:
+            "Unexpected closing brace; expected closing parenthesis for opening at line #{open_line}, column #{open_col} in #{file}",
+          line: line,
+          column: col,
+          file: file
+
+      _ ->
+        raise ParseError, reason: "mismatched brace in list", line: line, column: col, file: file
+    end
+  end
+
+  defp parse_list([{:discard, _value, _line, _col} | rest], acc, nested, stack, file) do
+    {_skip, remaining} = skip_next_form(rest, stack)
+    parse_list(remaining, acc, nested, stack, file)
+  end
+
+  defp parse_list([{:paren_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:paren, line, col} | stack]
+    {nested_list, remaining, final_stack} = parse_list(rest, [], true, new_stack, file)
+    parse_list(remaining, [{:list, nested_list} | acc], nested, final_stack, file)
+  end
+
+  defp parse_list([{:bracket_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:bracket, line, col} | stack]
+    {nested_vector, remaining, final_stack} = parse_vector(rest, [], true, new_stack, file)
+    parse_list(remaining, [{:vector, nested_vector} | acc], nested, final_stack, file)
+  end
+
+  defp parse_list([{:brace_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:brace, line, col} | stack]
+    {nested_map, remaining, final_stack} = parse_map(rest, [], true, new_stack, file)
+    parse_list(remaining, [{:map, nested_map} | acc], nested, final_stack, file)
+  end
+
+  defp parse_list([token | rest], acc, nested, stack, file) do
+    parse_list(rest, [parse_atom(token) | acc], nested, stack, file)
+  end
+
+  # --- Vector parsing ---
+  defp parse_vector([], _acc, _nested, stack, file) do
+    # EOF with unclosed vector - report outermost delimiter
+    {delimiter_type, open_line, open_col} = List.last(stack)
+
+    delimiter_name =
+      case delimiter_type do
+        :paren -> "parenthesis"
+        :bracket -> "bracket"
+        :brace -> "brace"
+      end
+
     raise ParseError,
-      reason: get_unmatched_error_message(line, col, file, :bracket),
-      line: line,
-      column: col,
+      reason:
+        "Missing closing #{delimiter_name} for opening at line #{open_line}, column #{open_col} in #{file}",
+      line: open_line,
+      column: open_col,
       file: file
   end
 
-  defp parse_forms([{:brace_close, line, col} | _rest], _acc, file, _stack) do
+  defp parse_vector([{:bracket_close, _value, _line, _col} | rest], acc, _nested, stack, _file) do
+    case stack do
+      [{:bracket, _open_line, _open_col} | remaining_stack] ->
+        {Enum.reverse(acc), rest, remaining_stack}
+
+      _ ->
+        {Enum.reverse(acc), rest, stack}
+    end
+  end
+
+  defp parse_vector([{:paren_close, _value, line, col} | _rest], _acc, _nested, stack, file) do
+    case stack do
+      [{:bracket, open_line, open_col} | _] ->
+        raise ParseError,
+          reason:
+            "Unexpected closing parenthesis; expected closing bracket for opening at line #{open_line}, column #{open_col} in #{file}",
+          line: line,
+          column: col,
+          file: file
+
+      _ ->
+        raise ParseError,
+          reason: "mismatched paren in vector",
+          line: line,
+          column: col,
+          file: file
+    end
+  end
+
+  defp parse_vector([{:brace_close, _value, line, col} | _rest], _acc, _nested, stack, file) do
+    case stack do
+      [{:bracket, open_line, open_col} | _] ->
+        raise ParseError,
+          reason:
+            "Unexpected closing brace; expected closing bracket for opening at line #{open_line}, column #{open_col} in #{file}",
+          line: line,
+          column: col,
+          file: file
+
+      _ ->
+        raise ParseError,
+          reason: "mismatched brace in vector",
+          line: line,
+          column: col,
+          file: file
+    end
+  end
+
+  defp parse_vector([{:discard, _value, _line, _col} | rest], acc, nested, stack, file) do
+    {_skip, remaining} = skip_next_form(rest, stack)
+    parse_vector(remaining, acc, nested, stack, file)
+  end
+
+  defp parse_vector([{:paren_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:paren, line, col} | stack]
+    {nested_list, remaining, final_stack} = parse_list(rest, [], true, new_stack, file)
+    parse_vector(remaining, [{:list, nested_list} | acc], nested, final_stack, file)
+  end
+
+  defp parse_vector([{:bracket_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:bracket, line, col} | stack]
+    {nested_vector, remaining, final_stack} = parse_vector(rest, [], true, new_stack, file)
+    parse_vector(remaining, [{:vector, nested_vector} | acc], nested, final_stack, file)
+  end
+
+  defp parse_vector([{:brace_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:brace, line, col} | stack]
+    {nested_map, remaining, final_stack} = parse_map(rest, [], true, new_stack, file)
+    parse_vector(remaining, [{:map, nested_map} | acc], nested, final_stack, file)
+  end
+
+  defp parse_vector([token | rest], acc, nested, stack, file) do
+    parse_vector(rest, [parse_atom(token) | acc], nested, stack, file)
+  end
+
+  # --- Map parsing ---
+  defp parse_map([], _acc, _nested, stack, file) do
+    # EOF with unclosed map - report outermost delimiter
+    {delimiter_type, open_line, open_col} = List.last(stack)
+
+    delimiter_name =
+      case delimiter_type do
+        :paren -> "parenthesis"
+        :bracket -> "bracket"
+        :brace -> "brace"
+      end
+
     raise ParseError,
-      reason: get_unmatched_error_message(line, col, file, :brace),
-      line: line,
-      column: col,
+      reason:
+        "Missing closing #{delimiter_name} for opening at line #{open_line}, column #{open_col} in #{file}",
+      line: open_line,
+      column: open_col,
       file: file
   end
 
-  defp parse_forms([token | rest], acc, file, stack) do
-    parse_forms(rest, [parse_atom(token) | acc], file, stack)
+  defp parse_map([{:brace_close, _value, _line, _col} | rest], acc, _nested, stack, _file) do
+    case stack do
+      [{:brace, _open_line, _open_col} | remaining_stack] ->
+        {Enum.reverse(acc), rest, remaining_stack}
+
+      _ ->
+        {Enum.reverse(acc), rest, stack}
+    end
   end
 
-  defp skip_next_form([{:paren_open, line, col} | rest], file, stack) do
-    {_form, remaining, new_stack} =
-      parse_list(rest, [], file, push_delimiter(stack, :paren, line, col))
-
-    {:skip, remaining, new_stack}
-  end
-
-  defp skip_next_form([{:bracket_open, line, col} | rest], file, stack) do
-    {_form, remaining, new_stack} =
-      parse_vector(rest, [], file, push_delimiter(stack, :bracket, line, col))
-
-    {:skip, remaining, new_stack}
-  end
-
-  defp skip_next_form([{:brace_open, line, col} | rest], file, stack) do
-    {_form, remaining, new_stack} =
-      parse_map(rest, [], file, push_delimiter(stack, :brace, line, col))
-
-    {:skip, remaining, new_stack}
-  end
-
-  defp skip_next_form([_token | rest], _file, stack), do: {:skip, rest, stack}
-
-  defp parse_list([], _acc, _file, stack) do
-    {[], [], stack}
-  end
-
-  defp parse_list([{:skip, _line, _col} | rest], acc, file, stack) do
-    {_form, remaining, new_stack} = skip_next_form(rest, file, stack)
-    parse_list(remaining, acc, file, new_stack)
-  end
-
-  defp parse_list([{:paren_open, line, col} | rest], acc, file, stack) do
-    {nested, remaining, new_stack} =
-      parse_list(rest, [], file, push_delimiter(stack, :paren, line, col))
-
-    parse_list(remaining, [{:list, nested} | acc], file, new_stack)
-  end
-
-  defp parse_list([{:bracket_open, line, col} | rest], acc, file, stack) do
-    {vector, remaining, new_stack} =
-      parse_vector(rest, [], file, push_delimiter(stack, :bracket, line, col))
-
-    parse_list(remaining, [{:vector, vector} | acc], file, new_stack)
-  end
-
-  defp parse_list([{:brace_open, line, col} | rest], acc, file, stack) do
-    {map, remaining, new_stack} =
-      parse_map(rest, [], file, push_delimiter(stack, :brace, line, col))
-
-    parse_list(remaining, [{:map, map} | acc], file, new_stack)
-  end
-
-  defp parse_list([{:paren_close, line, col} | rest], acc, file, stack) do
-    case pop_delimiter(stack, :paren, line, col, file) do
-      {:ok, new_stack} ->
-        {Enum.reverse(acc), rest, new_stack}
-
-      {:mismatch, mismatch_actual, close_line, close_col, expected_type, open_line, open_col} ->
+  defp parse_map([{:paren_close, _value, line, col} | _rest], _acc, _nested, stack, file) do
+    case stack do
+      [{:brace, open_line, open_col} | _] ->
         raise ParseError,
           reason:
-            get_mismatch_error_message(
-              close_line,
-              close_col,
-              file,
-              mismatch_actual,
-              expected_type,
-              open_line,
-              open_col
-            ),
-          line: close_line,
-          column: close_col,
+            "Unexpected closing parenthesis; expected closing brace for opening at line #{open_line}, column #{open_col} in #{file}",
+          line: line,
+          column: col,
           file: file
 
-      {:unmatched, unmatched_actual, close_line, close_col} ->
+      _ ->
+        raise ParseError, reason: "mismatched paren in map", line: line, column: col, file: file
+    end
+  end
+
+  defp parse_map([{:bracket_close, _value, line, col} | _rest], _acc, _nested, stack, file) do
+    case stack do
+      [{:brace, open_line, open_col} | _] ->
         raise ParseError,
-          reason: get_unmatched_error_message(close_line, close_col, file, unmatched_actual),
-          line: close_line,
-          column: close_col,
+          reason:
+            "Unexpected closing bracket; expected closing brace for opening at line #{open_line}, column #{open_col} in #{file}",
+          line: line,
+          column: col,
+          file: file
+
+      _ ->
+        raise ParseError,
+          reason: "mismatched bracket in map",
+          line: line,
+          column: col,
           file: file
     end
   end
 
-  defp parse_list([{:bracket_close, line, col} | rest], acc, file, stack) do
-    case pop_delimiter(stack, :bracket, line, col, file) do
-      {:ok, new_stack} ->
-        {Enum.reverse(acc), rest, new_stack}
+  defp parse_map([{:discard, _value, _line, _col} | rest], acc, nested, stack, file) do
+    {_skip, remaining} = skip_next_form(rest, stack)
+    parse_map(remaining, acc, nested, stack, file)
+  end
 
-      {:mismatch, mismatch_actual, close_line, close_col, expected_type, open_line, open_col} ->
-        raise ParseError,
-          reason:
-            get_mismatch_error_message(
-              close_line,
-              close_col,
-              file,
-              mismatch_actual,
-              expected_type,
-              open_line,
-              open_col
-            ),
-          line: close_line,
-          column: close_col,
-          file: file
+  defp parse_map([{:paren_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:paren, line, col} | stack]
+    {nested_list, remaining, final_stack} = parse_list(rest, [], true, new_stack, file)
+    parse_map(remaining, [{:list, nested_list} | acc], nested, final_stack, file)
+  end
 
-      {:unmatched, unmatched_actual, close_line, close_col} ->
-        raise ParseError,
-          reason: get_unmatched_error_message(close_line, close_col, file, unmatched_actual),
-          line: close_line,
-          column: close_col,
-          file: file
+  defp parse_map([{:bracket_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:bracket, line, col} | stack]
+    {nested_vector, remaining, final_stack} = parse_vector(rest, [], true, new_stack, file)
+    parse_map(remaining, [{:vector, nested_vector} | acc], nested, final_stack, file)
+  end
+
+  defp parse_map([{:brace_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:brace, line, col} | stack]
+    {nested_map, remaining, final_stack} = parse_map(rest, [], true, new_stack, file)
+    parse_map(remaining, [{:map, nested_map} | acc], nested, final_stack, file)
+  end
+
+  defp parse_map([token | rest], acc, nested, stack, file) do
+    parse_map(rest, [parse_atom(token) | acc], nested, stack, file)
+  end
+
+  # --- Atom parsing ---
+  defp parse_atom({:string, value, _line, _col}) do
+    {:string, to_string(value)}
+  end
+
+  defp parse_atom({:number, value, _line, _col}) do
+    str_value = to_string(value)
+
+    case Integer.parse(str_value) do
+      {num, ""} ->
+        {:number, num}
+
+      _ ->
+        case Float.parse(str_value) do
+          {num, ""} -> {:number, num}
+          _ -> {:number, str_value}
+        end
     end
   end
 
-  defp parse_list([{:brace_close, line, col} | rest], acc, file, stack) do
-    case pop_delimiter(stack, :brace, line, col, file) do
-      {:ok, new_stack} ->
-        {Enum.reverse(acc), rest, new_stack}
-
-      {:mismatch, mismatch_actual, close_line, close_col, expected_type, open_line, open_col} ->
-        raise ParseError,
-          reason:
-            get_mismatch_error_message(
-              close_line,
-              close_col,
-              file,
-              mismatch_actual,
-              expected_type,
-              open_line,
-              open_col
-            ),
-          line: close_line,
-          column: close_col,
-          file: file
-
-      {:unmatched, unmatched_actual, close_line, close_col} ->
-        raise ParseError,
-          reason: get_unmatched_error_message(close_line, close_col, file, unmatched_actual),
-          line: close_line,
-          column: close_col,
-          file: file
-    end
+  defp parse_atom({:symbol, value, _line, _col}) do
+    {:symbol, to_string(value)}
   end
 
-  defp parse_list([token | rest], acc, file, stack) do
-    parse_list(rest, [parse_atom(token) | acc], file, stack)
-  end
+  defp parse_atom({:keyword, value, _line, _col}) do
+    str_value = to_string(value)
+    # Remove leading colon if present
+    normalized =
+      str_value
+      |> String.trim_leading(":")
+      |> String.replace("-", "_")
 
-  defp parse_vector([], _acc, _file, stack) do
-    {[], [], stack}
-  end
-
-  defp parse_vector([{:skip, _line, _col} | rest], acc, file, stack) do
-    {_form, remaining, new_stack} = skip_next_form(rest, file, stack)
-    parse_vector(remaining, acc, file, new_stack)
-  end
-
-  defp parse_vector([{:paren_open, line, col} | rest], acc, file, stack) do
-    {nested, remaining, new_stack} =
-      parse_list(rest, [], file, push_delimiter(stack, :paren, line, col))
-
-    parse_vector(remaining, [{:list, nested} | acc], file, new_stack)
-  end
-
-  defp parse_vector([{:bracket_open, line, col} | rest], acc, file, stack) do
-    {nested_vector, remaining, new_stack} =
-      parse_vector(rest, [], file, push_delimiter(stack, :bracket, line, col))
-
-    parse_vector(remaining, [{:vector, nested_vector} | acc], file, new_stack)
-  end
-
-  defp parse_vector([{:brace_open, line, col} | rest], acc, file, stack) do
-    {map, remaining, new_stack} =
-      parse_map(rest, [], file, push_delimiter(stack, :brace, line, col))
-
-    parse_vector(remaining, [{:map, map} | acc], file, new_stack)
-  end
-
-  defp parse_vector([{:paren_close, line, col} | rest], acc, file, stack) do
-    case pop_delimiter(stack, :paren, line, col, file) do
-      {:ok, new_stack} ->
-        {Enum.reverse(acc), rest, new_stack}
-
-      {:mismatch, mismatch_actual, close_line, close_col, expected_type, open_line, open_col} ->
-        raise ParseError,
-          reason:
-            get_mismatch_error_message(
-              close_line,
-              close_col,
-              file,
-              mismatch_actual,
-              expected_type,
-              open_line,
-              open_col
-            ),
-          line: close_line,
-          column: close_col,
-          file: file
-
-      {:unmatched, unmatched_actual, close_line, close_col} ->
-        raise ParseError,
-          reason: get_unmatched_error_message(close_line, close_col, file, unmatched_actual),
-          line: close_line,
-          column: close_col,
-          file: file
-    end
-  end
-
-  defp parse_vector([{:bracket_close, line, col} | rest], acc, file, stack) do
-    case pop_delimiter(stack, :bracket, line, col, file) do
-      {:ok, new_stack} ->
-        {Enum.reverse(acc), rest, new_stack}
-
-      {:mismatch, mismatch_actual, close_line, close_col, expected_type, open_line, open_col} ->
-        raise ParseError,
-          reason:
-            get_mismatch_error_message(
-              close_line,
-              close_col,
-              file,
-              mismatch_actual,
-              expected_type,
-              open_line,
-              open_col
-            ),
-          line: close_line,
-          column: close_col,
-          file: file
-
-      {:unmatched, unmatched_actual, close_line, close_col} ->
-        raise ParseError,
-          reason: get_unmatched_error_message(close_line, close_col, file, unmatched_actual),
-          line: close_line,
-          column: close_col,
-          file: file
-    end
-  end
-
-  defp parse_vector([{:brace_close, line, col} | rest], acc, file, stack) do
-    case pop_delimiter(stack, :brace, line, col, file) do
-      {:ok, new_stack} ->
-        {Enum.reverse(acc), rest, new_stack}
-
-      {:mismatch, mismatch_actual, close_line, close_col, expected_type, open_line, open_col} ->
-        raise ParseError,
-          reason:
-            get_mismatch_error_message(
-              close_line,
-              close_col,
-              file,
-              mismatch_actual,
-              expected_type,
-              open_line,
-              open_col
-            ),
-          line: close_line,
-          column: close_col,
-          file: file
-
-      {:unmatched, unmatched_actual, close_line, close_col} ->
-        raise ParseError,
-          reason: get_unmatched_error_message(close_line, close_col, file, unmatched_actual),
-          line: close_line,
-          column: close_col,
-          file: file
-    end
-  end
-
-  defp parse_vector([token | rest], acc, file, stack) do
-    parse_vector(rest, [parse_atom(token) | acc], file, stack)
-  end
-
-  defp parse_map([], _acc, _file, stack) do
-    {[], [], stack}
-  end
-
-  defp parse_map([{:skip, _line, _col} | rest], acc, file, stack) do
-    {_form, remaining, new_stack} = skip_next_form(rest, file, stack)
-    parse_map(remaining, acc, file, new_stack)
-  end
-
-  defp parse_map([{:paren_open, line, col} | rest], acc, file, stack) do
-    {nested, remaining, new_stack} =
-      parse_list(rest, [], file, push_delimiter(stack, :paren, line, col))
-
-    parse_map(remaining, [{:list, nested} | acc], file, new_stack)
-  end
-
-  defp parse_map([{:bracket_open, line, col} | rest], acc, file, stack) do
-    {vector, remaining, new_stack} =
-      parse_vector(rest, [], file, push_delimiter(stack, :bracket, line, col))
-
-    parse_map(remaining, [{:vector, vector} | acc], file, new_stack)
-  end
-
-  defp parse_map([{:brace_open, line, col} | rest], acc, file, stack) do
-    {nested_map, remaining, new_stack} =
-      parse_map(rest, [], file, push_delimiter(stack, :brace, line, col))
-
-    parse_map(remaining, [{:map, nested_map} | acc], file, new_stack)
-  end
-
-  defp parse_map([{:paren_close, line, col} | rest], acc, file, stack) do
-    case pop_delimiter(stack, :paren, line, col, file) do
-      {:ok, new_stack} ->
-        {Enum.reverse(acc), rest, new_stack}
-
-      {:mismatch, mismatch_actual, close_line, close_col, expected_type, open_line, open_col} ->
-        raise ParseError,
-          reason:
-            get_mismatch_error_message(
-              close_line,
-              close_col,
-              file,
-              mismatch_actual,
-              expected_type,
-              open_line,
-              open_col
-            ),
-          line: close_line,
-          column: close_col,
-          file: file
-
-      {:unmatched, unmatched_actual, close_line, close_col} ->
-        raise ParseError,
-          reason: get_unmatched_error_message(close_line, close_col, file, unmatched_actual),
-          line: close_line,
-          column: close_col,
-          file: file
-    end
-  end
-
-  defp parse_map([{:bracket_close, line, col} | rest], acc, file, stack) do
-    case pop_delimiter(stack, :bracket, line, col, file) do
-      {:ok, new_stack} ->
-        {Enum.reverse(acc), rest, new_stack}
-
-      {:mismatch, mismatch_actual, close_line, close_col, expected_type, open_line, open_col} ->
-        raise ParseError,
-          reason:
-            get_mismatch_error_message(
-              close_line,
-              close_col,
-              file,
-              mismatch_actual,
-              expected_type,
-              open_line,
-              open_col
-            ),
-          line: close_line,
-          column: close_col,
-          file: file
-
-      {:unmatched, unmatched_actual, close_line, close_col} ->
-        raise ParseError,
-          reason: get_unmatched_error_message(close_line, close_col, file, unmatched_actual),
-          line: close_line,
-          column: close_col,
-          file: file
-    end
-  end
-
-  defp parse_map([{:brace_close, line, col} | rest], acc, file, stack) do
-    case pop_delimiter(stack, :brace, line, col, file) do
-      {:ok, new_stack} ->
-        {Enum.reverse(acc), rest, new_stack}
-
-      {:mismatch, mismatch_actual, close_line, close_col, expected_type, open_line, open_col} ->
-        raise ParseError,
-          reason:
-            get_mismatch_error_message(
-              close_line,
-              close_col,
-              file,
-              mismatch_actual,
-              expected_type,
-              open_line,
-              open_col
-            ),
-          line: close_line,
-          column: close_col,
-          file: file
-
-      {:unmatched, unmatched_actual, close_line, close_col} ->
-        raise ParseError,
-          reason: get_unmatched_error_message(close_line, close_col, file, unmatched_actual),
-          line: close_line,
-          column: close_col,
-          file: file
-    end
-  end
-
-  defp parse_map([token | rest], acc, file, stack) do
-    parse_map(rest, [parse_atom(token) | acc], file, stack)
-  end
-
-  defp parse_atom("\"" <> _ = token) do
-    value = String.slice(token, 1..-2//1)
-    {:string, value}
-  end
-
-  defp parse_atom(":" <> rest = token) when is_binary(token) do
-    normalized = String.replace(rest, "-", "_")
     {:keyword, String.to_atom(normalized)}
-  end
-
-  defp parse_atom(token) when is_binary(token) do
-    cond do
-      match?({_, ""}, Integer.parse(token)) ->
-        {num, ""} = Integer.parse(token)
-        {:number, num}
-
-      match?({_, ""}, Float.parse(token)) ->
-        {num, ""} = Float.parse(token)
-        {:number, num}
-
-      true ->
-        {:symbol, token}
-    end
   end
 
   defp parse_atom(token), do: token

@@ -24,6 +24,8 @@ defmodule CljCompiler.MixProject do
   defp elixirc_paths(_), do: ["lib"]
 
   defp deps do
-    []
+    [
+      {:nimble_parsec, "~> 1.4", runtime: false}
+    ]
   end
 end
