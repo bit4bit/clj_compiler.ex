@@ -595,7 +595,8 @@ defmodule CljCompiler.Reader do
   end
 
   defp parse_atom(":" <> rest = token) when is_binary(token) do
-    {:keyword, String.to_atom(rest)}
+    normalized = String.replace(rest, "-", "_")
+    {:keyword, String.to_atom(normalized)}
   end
 
   defp parse_atom(token) when is_binary(token) do

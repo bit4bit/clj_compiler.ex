@@ -778,22 +778,21 @@ defmodule CljCompilerTest do
 
       assert {:list,
               [
-                {:symbol, "defn"},
-                {:symbol, "safe-divide"},
-                {:vector, [{:symbol, "a"}, {:symbol, "b"}]},
-                {:list,
-                 [
-                   {:symbol, "try"},
-                   {:list, [{:symbol, "/"}, {:symbol, "a"}, {:symbol, "b"}]},
-                   {:list,
-                    [
-                      {:symbol, "catch"},
-                      {:list, [{:symbol, "ArithmeticException"}, {:symbol, "e"}]},
-                      {:keyword, :infinity}
-                    ]},
-                   {:list, [{:symbol, "finally"}, {:keyword, :cleanup}]}
-                 ], _}
-              ], _} = List.last(ast)
+                symbol: "defn",
+                symbol: "safe-divide",
+                vector: [symbol: "a", symbol: "b"],
+                list: [
+                  symbol: "try",
+                  list: [symbol: "/", symbol: "a", symbol: "b"],
+                  list: [
+                    symbol: "catch",
+                    symbol: "ArithmeticError",
+                    symbol: "e",
+                    keyword: :infinity
+                  ],
+                  list: [symbol: "finally", keyword: :cleanup]
+                ]
+              ], 3} = List.last(ast)
     end
 
     test "parses try with multiple catches" do
@@ -815,32 +814,30 @@ defmodule CljCompilerTest do
 
       assert {:list,
               [
-                {:symbol, "defn"},
-                {:symbol, "try-multiple"},
-                {:vector, [{:symbol, "x"}]},
-                {:list,
-                 [
-                   {:symbol, "try"},
-                   {:list,
-                    [
-                      {:symbol, "if"},
-                      {:symbol, "x"},
-                      {:keyword, :positive},
-                      {:keyword, :"non-positive"}
-                    ]},
-                   {:list,
-                    [
-                      {:symbol, "catch"},
-                      {:list, [{:symbol, "Exception"}, {:symbol, "e"}]},
-                      {:keyword, :caught}
-                    ]},
-                   {:list,
-                    [
-                      {:symbol, "catch"},
-                      {:list, [{:symbol, "ArgumentError"}, {:symbol, "e"}]},
-                      {:keyword, :illegal}
-                    ]}
-                 ], _}
+                symbol: "defn",
+                symbol: "try-multiple",
+                vector: [symbol: "x"],
+                list: [
+                  symbol: "try",
+                  list: [
+                    symbol: "if",
+                    list: [symbol: ">", symbol: "x", number: 0],
+                    keyword: :positive,
+                    keyword: :non_positive
+                  ],
+                  list: [
+                    symbol: "catch",
+                    symbol: "RuntimeError",
+                    symbol: "e",
+                    keyword: :caught
+                  ],
+                  list: [
+                    symbol: "catch",
+                    symbol: "ArgumentError",
+                    symbol: "e",
+                    keyword: :illegal
+                  ]
+                ]
               ], _} = List.last(ast)
     end
 
@@ -859,16 +856,15 @@ defmodule CljCompilerTest do
 
       assert {:list,
               [
-                {:symbol, "defn"},
-                {:symbol, "try-only"},
-                {:vector, []},
-                {:list,
-                 [
-                   {:symbol, "try"},
-                   {:keyword, :result},
-                   {:list, [{:symbol, "finally"}, {:keyword, :cleanup}]}
-                 ], _}
-              ], _} = List.last(ast)
+                symbol: "defn",
+                symbol: "try-only",
+                vector: [],
+                list: [
+                  symbol: "try",
+                  keyword: :result,
+                  list: [symbol: "finally", keyword: :cleanup]
+                ]
+              ], 3} = List.last(ast)
     end
 
     test "translates try/catch/finally to Elixir try/rescue/after" do
