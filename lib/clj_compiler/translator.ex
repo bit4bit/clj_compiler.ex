@@ -1078,6 +1078,28 @@ defmodule CljCompiler.Translator do
         )
       )
 
+    translate_function_call_with_exception(
+      fn_name,
+      translated_args,
+      parent_module,
+      attr_names,
+      param_names,
+      local_functions,
+      namespace_uses,
+      file
+    )
+  end
+
+  defp translate_function_call_without_exception(
+         fn_name,
+         translated_args,
+         _parent_module,
+         _attr_names,
+         param_names,
+         _local_functions,
+         _namespace_uses,
+         _file
+       ) do
     original_fn_name = fn_name
     fn_name = String.replace(fn_name, "-", "_")
 
@@ -1121,40 +1143,16 @@ defmodule CljCompiler.Translator do
     end
   end
 
-  defp translate_expr(
-         {:list, [{:symbol, fn_name} | args]},
-         parent_module,
-         attr_names,
+  defp translate_function_call_with_exception(
+         fn_name,
+         translated_args,
+         _parent_module,
+         _attr_names,
          param_names,
-         local_functions,
-         namespace_uses,
-         file
+         _local_functions,
+         _namespace_uses,
+         _file
        ) do
-    validate_function_call!(
-      fn_name,
-      parent_module,
-      attr_names,
-      param_names,
-      local_functions,
-      namespace_uses,
-      file,
-      1
-    )
-
-    translated_args =
-      Enum.map(
-        args,
-        &translate_expr(
-          &1,
-          parent_module,
-          attr_names,
-          param_names,
-          local_functions,
-          namespace_uses,
-          file
-        )
-      )
-
     original_fn_name = fn_name
     fn_name = String.replace(fn_name, "-", "_")
 
@@ -1203,6 +1201,52 @@ defmodule CljCompiler.Translator do
           end
       end
     end
+  end
+
+  defp translate_expr(
+         {:list, [{:symbol, fn_name} | args]},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    validate_function_call!(
+      fn_name,
+      parent_module,
+      attr_names,
+      param_names,
+      local_functions,
+      namespace_uses,
+      file,
+      1
+    )
+
+    translated_args =
+      Enum.map(
+        args,
+        &translate_expr(
+          &1,
+          parent_module,
+          attr_names,
+          param_names,
+          local_functions,
+          namespace_uses,
+          file
+        )
+      )
+
+    translate_function_call_with_exception(
+      fn_name,
+      translated_args,
+      parent_module,
+      attr_names,
+      param_names,
+      local_functions,
+      namespace_uses,
+      file
+    )
   end
 
   defp translate_expr(
