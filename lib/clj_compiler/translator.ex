@@ -110,43 +110,6 @@ defmodule CljCompiler.Translator do
      ]}
   end
 
-  # Single-arity defn without line info (legacy support)
-  defp translate_form(
-         {:list, [{:symbol, "defn"}, {:symbol, name}, {:vector, params} | body]},
-         parent_module,
-         attr_names,
-         _param_names,
-         local_functions,
-         namespace_uses,
-         file
-       ) do
-    function_name = symbol_to_atom(name)
-
-    param_names = Enum.map(params, fn {:symbol, p} -> p end)
-
-    param_vars =
-      Enum.map(params, fn {:symbol, p} ->
-        {String.to_atom(p), [file: to_charlist(file), line: 1], nil}
-      end)
-
-    body_ast =
-      translate_body(
-        body,
-        parent_module,
-        attr_names,
-        param_names,
-        local_functions,
-        namespace_uses,
-        file
-      )
-
-    {:def, [file: to_charlist(file), line: 1],
-     [
-       {function_name, [file: to_charlist(file), line: 1], param_vars},
-       [do: body_ast]
-     ]}
-  end
-
   # Multi-arity defn with line info: (defn name "docstring" ([params] body) ...)
   # Third element is a string - multi-arity with docstring
   defp translate_form(
@@ -394,80 +357,6 @@ defmodule CljCompiler.Translator do
 
     # Return list of defs
     [doc_attr_asts, def_asts] |> List.flatten()
-  end
-
-  # Single-arity defn with line info (legacy support)
-  defp translate_form(
-         {:list, [{:symbol, "defn"}, {:symbol, name}, {:vector, params} | body], line},
-         parent_module,
-         attr_names,
-         _param_names,
-         local_functions,
-         namespace_uses,
-         file
-       ) do
-    function_name = symbol_to_atom(name)
-
-    param_names = Enum.map(params, fn {:symbol, p} -> p end)
-
-    param_vars =
-      Enum.map(params, fn {:symbol, p} ->
-        {String.to_atom(p), [file: to_charlist(file), line: line], nil}
-      end)
-
-    body_ast =
-      translate_body(
-        body,
-        parent_module,
-        attr_names,
-        param_names,
-        local_functions,
-        namespace_uses,
-        file
-      )
-
-    {:def, [file: to_charlist(file), line: line],
-     [
-       {function_name, [file: to_charlist(file), line: line], param_vars},
-       [do: body_ast]
-     ]}
-  end
-
-  # Single-arity defn without line info (legacy support)
-  defp translate_form(
-         {:list, [{:symbol, "defn"}, {:symbol, name}, {:vector, params} | body]},
-         parent_module,
-         attr_names,
-         _param_names,
-         local_functions,
-         namespace_uses,
-         file
-       ) do
-    function_name = symbol_to_atom(name)
-
-    param_names = Enum.map(params, fn {:symbol, p} -> p end)
-
-    param_vars =
-      Enum.map(params, fn {:symbol, p} ->
-        {String.to_atom(p), [file: to_charlist(file), line: 1], nil}
-      end)
-
-    body_ast =
-      translate_body(
-        body,
-        parent_module,
-        attr_names,
-        param_names,
-        local_functions,
-        namespace_uses,
-        file
-      )
-
-    {:def, [file: to_charlist(file), line: 1],
-     [
-       {function_name, [file: to_charlist(file), line: 1], param_vars},
-       [do: body_ast]
-     ]}
   end
 
   # Parse arity clauses: ([params] body ...)

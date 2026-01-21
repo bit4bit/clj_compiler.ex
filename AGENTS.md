@@ -16,3 +16,8 @@ Use `@/openspec/AGENTS.md` to learn:
 Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
+
+
+# Coding guidelines
+
+* When refactoring, be cautious. Work by making small changes and verifying them.
