@@ -1237,4 +1237,85 @@ defmodule CljCompilerTest do
       # Result will be unique_integer + 1, which is always an integer
     end
   end
+
+  describe "multi-arity defn" do
+    @tag :multi_arity_defn
+    test "defn with two arities translates correctly" do
+      # Simple test that multi-arity defn can be parsed and translated
+      {:ok, forms} =
+        CljCompiler.Reader.parse("(defn concat ([]) ([a]))", "test.clj")
+
+      # Should not raise and should produce def clauses
+      ast = CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
+      assert is_list(ast)
+      assert length(ast) >= 2
+    end
+
+    @tag :multi_arity_defn
+    test "defn with three arities translates correctly" do
+      {:ok, forms} =
+        CljCompiler.Reader.parse("(defn foo ([]) ([x]) ([x y]))", "test.clj")
+
+      ast = CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
+      assert length(ast) == 3
+    end
+
+    @tag :multi_arity_defn
+    test "defn with 0-arity and 1-arity translates correctly" do
+      {:ok, forms} =
+        CljCompiler.Reader.parse("(defn greet ([]) ([name]))", "test.clj")
+
+      ast = CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
+      assert length(ast) == 2
+    end
+
+    @tag :multi_arity_defn
+    test "defn with docstring translates correctly" do
+      {:ok, forms} =
+        CljCompiler.Reader.parse(
+          "(defn concat \"Docs\" ([]) ([a]))",
+          "test.clj"
+        )
+
+      ast = CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
+
+      # Should have @doc attribute followed by two def clauses
+      assert length(ast) == 3
+      assert {:@, _, [{:doc, [], [_]}]} = List.first(ast)
+    end
+
+    @tag :multi_arity_defn
+    test "defn with single arity (legacy syntax) still works" do
+      {:ok, forms} = CljCompiler.Reader.parse("(defn double [x] x)", "test.clj")
+      ast = CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
+
+      # Should produce exactly one def
+      assert length(ast) == 1
+      first = List.first(ast)
+      assert is_tuple(first)
+      assert :def == elem(first, 0)
+    end
+
+    @tag :multi_arity_defn
+    test "raises error for non-vector arity parameters" do
+      # (defn bad (x)) is parsed as multi-arity with one clause ([x]) but (x) is not ([x])
+      # So it becomes a malformed arity clause
+      {:ok, forms} = CljCompiler.Reader.parse("(defn bad (x) x)", "test.clj")
+
+      # Should raise because (x) is not a valid arity vector
+      assert_raise RuntimeError, fn ->
+        CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
+      end
+    end
+
+    @tag :multi_arity_defn
+    test "raises error for duplicate arities" do
+      {:ok, forms} = CljCompiler.Reader.parse("(defn dup ([] 1) ([x] 2) ([] 3))", "test.clj")
+
+      # Should detect duplicate 0-arity
+      assert_raise RuntimeError, fn ->
+        CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
+      end
+    end
+  end
 end
