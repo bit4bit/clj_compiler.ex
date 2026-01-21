@@ -1,3 +1,4 @@
+# Change: Add Multi-Arity Function Support
 ## ADDED Requirements
 
 ### Requirement: Multi-Arity defn Syntax
@@ -24,40 +25,18 @@ The system SHALL support defining functions with multiple arities using the `def
 - **THEN** the docstring "Concatenates strings" SHALL be preserved before arity clauses
 - **THEN** the arity clauses SHALL be parsed after the docstring
 
-### Requirement: Multi-Arity fn Syntax (Same Arity Only)
-The system SHALL support defining anonymous functions with multiple clauses, but all clauses MUST have the same arity.
+### Requirement: Single-Arity defn Remains Unchanged
+The system SHALL continue to support single-arity defn syntax for backward compatibility.
 
-#### Scenario: Multi-arity fn with same arity (1 parameter)
-- **WHEN** parsing `(fn ([x] (* x 2)) ([x] (+ x 1)))`
-- **THEN** the form SHALL be parsed as an anonymous function with two clauses
-- **THEN** both clauses SHALL have exactly one parameter `x`
-- **THEN** the clauses have different bodies
+#### Scenario: Single-arity defn with params vector
+- **WHEN** parsing `(defn foo [x] (* x 2))`
+- **THEN** it SHALL parse as single-arity defn
+- **THEN** the body SHALL be a simple expression list
 
-#### Scenario: Multi-arity fn with same arity (2 parameters)
-- **WHEN** parsing `(fn ([x y] (+ x y)) ([x y] (* x y)))`
-- **THEN** the form SHALL be parsed as an anonymous function with two clauses
-- **THEN** both clauses SHALL have exactly two parameters `x` and `y`
-
-#### Scenario: Multi-arity fn with 0-arity and 1-arity is rejected
-- **WHEN** parsing `(fn ([] 0) ([x] (* x 2)))`
-- **THEN** an error SHALL be raised because different arities are not allowed for anonymous functions
-- **THEN** error message SHALL indicate that fn requires same arity across all clauses
-
-#### Scenario: Multi-arity fn with 1-arity and 2-arity is rejected
-- **WHEN** parsing `(fn ([x] x) ([x y] (+ x y)))`
-- **THEN** an error SHALL be raised because different arities are not allowed for anonymous functions
-
-### Requirement: Single-Arity fn Remains Unchanged
-The system SHALL continue to support single-arity fn syntax for backward compatibility.
-
-#### Scenario: Single-parameter fn
-- **WHEN** parsing `(fn [x] (* x 2))`
-- **THEN** it SHALL parse as a single-arity anonymous function
-- **THEN** the body SHALL be a simple expression
-
-#### Scenario: Multi-parameter fn (same arity)
-- **WHEN** parsing `(fn [x y] (+ x y))`
-- **THEN** it SHALL parse as a single-arity anonymous function with two parameters
+#### Scenario: Single-arity defn with docstring
+- **WHEN** parsing `(defn foo "Doubles a number" [x] (* x 2))`
+- **THEN** it SHALL parse as single-arity defn with docstring
+- **THEN** the docstring SHALL be preserved
 
 ### Requirement: Multi-Arity defn Detection
 The system SHALL distinguish between single-arity and multi-arity defn forms.
@@ -79,10 +58,6 @@ The system SHALL validate multi-arity function definitions for correctness.
 - **WHEN** parsing `(defn dup ([] 1) ([x] 2) ([y] 3))`
 - **THEN** it SHALL report an error for duplicate arities (0-arity appears once)
 - **THEN** error message SHALL indicate which arity is duplicated
-
-#### Scenario: Reject fn with different arities
-- **WHEN** parsing `(defn bad ([] 1) ([x] 2) ([x y] 3))`
-- **THEN** it SHALL report an error for fn requiring same arity
 
 #### Scenario: Require at least one arity clause
 - **WHEN** parsing `(defn empty [])`

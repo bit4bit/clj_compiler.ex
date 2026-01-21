@@ -1,3 +1,4 @@
+# Change: Add Multi-Arity Function Support
 ## ADDED Requirements
 
 ### Requirement: Multi-Arity defn Translation
@@ -30,58 +31,6 @@ The system SHALL translate multi-arity `defn` forms to Elixir multi-clause funct
 - **WHEN** translating `(defn concat "Concatenates" ([] "") ([a] a))`
 - **THEN** the docstring SHALL be preserved as `@doc` attribute
 - **THEN** the arity clauses SHALL be generated after the docstring
-
-### Requirement: Multi-Arity fn Translation (Same Arity Only)
-The system SHALL translate multi-arity `fn` forms to Elixir anonymous functions with multiple clauses, but ALL clauses MUST have the same arity.
-
-#### Scenario: Multi-arity fn with same arity translates to multi-clause anonymous function
-- **WHEN** translating `(fn ([x] (* x 2)) ([x] (+ x 1)))`
-- **THEN** it SHALL produce Elixir AST equivalent to:
-  ```elixir
-  fn
-    x -> x * 2
-    x -> x + 1
-  end
-  ```
-
-#### Scenario: Multi-arity fn with two parameters
-- **WHEN** translating `(fn ([x y] (+ x y)) ([x y] (* x y)))`
-- **THEN** it SHALL produce anonymous function with two clauses, both having 2 parameters:
-  ```elixir
-  fn
-    x, y -> x + y
-    x, y -> x * y
-  end
-  ```
-
-#### Scenario: Multi-arity fn called immediately
-- **WHEN** translating `((fn ([x] (* x 2)) ([x] (+ x 1))) 5)`
-- **THEN** the fn SHALL translate to multi-clause anonymous function
-- **THEN** the call SHALL invoke the appropriate clause
-- **THEN** the result SHALL be `10` (5 * 2)
-
-#### Scenario: Multi-arity fn in let binding
-- **WHEN** translating `(let [f (fn ([x] (* x 2)) ([x] (+ x 1)))] (f 3))`
-- **THEN** `f` SHALL be bound to the multi-clause anonymous function
-- **THEN** calling `(f 3)` SHALL invoke the 1-arity clause
-
-#### Scenario: Single-arity fn translates directly (no change from existing)
-- **WHEN** translating `(fn [x] (* x 2))`
-- **THEN** it SHALL produce `fn x -> x * 2 end`
-- **THEN** no multi-clause anonymous function SHALL be generated
-
-### Requirement: Multi-Arity fn Validation During Translation
-The system SHALL validate that multi-arity `fn` definitions have all clauses with the same arity before translation.
-
-#### Scenario: Different arities in fn raises error during translation
-- **WHEN** translating `(fn ([] 0) ([x] x))`
-- **THEN** it SHALL raise an error
-- **THEN** error message SHALL indicate "fn multi-arity requires all clauses to have the same arity"
-
-#### Scenario: Mixed 1-arity and 2-arity raises error
-- **WHEN** translating `(fn ([x] x) ([x y] (+ x y)))`
-- **THEN** it SHALL raise an error during translation
-- **THEN** translation SHALL NOT produce invalid Elixir code
 
 ### Requirement: Multi-Arity Body Translation
 The system SHALL correctly translate the body of each arity clause.
@@ -132,17 +81,13 @@ The system SHALL correctly handle local function definitions with multiple ariti
 - **THEN** validation SHALL recognize both arities exist
 
 #### Scenario: Multi-arity defn with fn inside body
-- **WHEN** defining `(defn outer ([] (fn ([x] (* x 2)) ([x] (+ x 1)))) ([y] (y)))`
+- **WHEN** defining `(defn outer ([] (fn [x] (* x 2))) ([y] y))`
 - **THEN** the outer function SHALL have two arities
-- **THEN** the inner fn SHALL have two clauses with same arity
+- **THEN** the inner fn SHALL be a single-arity anonymous function
 - **THEN** all clauses SHALL translate correctly
 
 ### Requirement: Multi-Arity Error Handling
 The system SHALL provide appropriate error handling for invalid multi-arity function definitions.
-
-#### Scenario: fn with different arities raises error
-- **WHEN** translating `(fn ([x] x) ([x y] (+ x y)))`
-- **THEN** it SHALL raise an error indicating same arity is required
 
 #### Scenario: Missing arity clause raises error
 - **WHEN** translating `(defn empty [])`
@@ -155,6 +100,11 @@ The system SHALL provide appropriate error handling for invalid multi-arity func
 #### Scenario: Missing body raises error
 - **WHEN** translating `(defn incomplete ([]))`
 - **THEN** it SHALL raise an error for missing body expressions
+
+#### Scenario: Duplicate arity raises error
+- **WHEN** translating `(defn dup ([] 1) ([x] 2) ([y] 3))`
+- **THEN** it SHALL raise an error for duplicate arities
+- **THEN** error message SHALL indicate which arity is duplicated
 
 ### Requirement: Multi-Arity Function in Namespace Context
 Multi-arity functions SHALL work correctly within namespace definitions and with qualified function calls.
@@ -169,9 +119,7 @@ Multi-arity functions SHALL work correctly within namespace definitions and with
 - **WHEN** namespace A defines multi-arity function and namespace B uses it
 - **THEN** calls from namespace B SHALL resolve to the correct clauses
 
-#### Scenario: Multi-arity fn passed to higher-order functions
-- **WHEN** translating `(map (fn ([x] (* x 2)) ([x] (+ x 1))) [1 2 3])`
-- **THEN** the fn SHALL translate to multi-clause anonymous function
+#### Scenario: Single-arity fn passed to higher-order functions
+- **WHEN** translating `(map (fn [x] (* x 2)) [1 2 3])`
+- **THEN** the fn SHALL translate to a single-arity anonymous function
 - **THEN** `map` SHALL invoke the function with one argument for each element
-- **THEN** Elixir SHALL evaluate clauses in order, first matching clause wins
-- **THEN** since all input elements match the first clause, it SHALL be used for all
