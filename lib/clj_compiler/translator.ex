@@ -343,6 +343,26 @@ defmodule CljCompiler.Translator do
        do: value
 
   defp translate_expr(
+         {:map, elements},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    translate_map(
+      elements,
+      parent_module,
+      attr_names,
+      param_names,
+      local_functions,
+      namespace_uses,
+      file
+    )
+  end
+
+  defp translate_expr(
          {:map, elements, _line},
          parent_module,
          attr_names,
