@@ -40,4 +40,8 @@ defmodule CljCompiler.Compat do
   def map(fun, coll) do
     Enum.map(coll, fun)
   end
+
+  def nil?(value) do
+    is_nil(value)
+  end
 end

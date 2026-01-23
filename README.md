@@ -38,6 +38,11 @@ Create `.clj` files in the specified directory with namespace declarations:
 (defn hello [] "Hello World")
 
 (defn greet [name] (str "Hello, " name))
+
+(defn concat
+  ([] "")
+  ([a] (str "hello " a))
+  ([a b] (str a " and " b)))
 ```
 
 The compiler will:
@@ -56,7 +61,62 @@ ClojureProject.My.App.Core.hello()
 
 ClojureProject.My.App.Core.greet("Alice")
 # => "Hello, Alice"
+
+ClojureProject.My.App.Core.concat()
+# => ""
+
+ClojureProject.My.App.Core.concat("world")
+# => "hello world"
+
+ClojureProject.My.App.Core.concat("foo", "bar")
+# => "foo and bar"
 ```
+
+### Multi-Arity Functions
+
+Functions can be defined with multiple arities using the multi-arity `defn` syntax:
+
+```clojure
+(ns my.math)
+
+(defn add
+  ([] 0)
+  ([x] x)
+  ([x y] (+ x y))
+  ([x y z] (+ x (+ y z))))
+
+(defn greet
+  ([] "Hello!")
+  ([name] (str "Hello, " name)))
+```
+
+```elixir
+ClojureProject.My.Math.add()
+# => 0
+
+ClojureProject.My.Math.add(5)
+# => 5
+
+ClojureProject.My.Math.add(3, 4)
+# => 7
+
+ClojureProject.My.Math.add(1, 2, 3)
+# => 6
+
+ClojureProject.My.Math.greet()
+# => "Hello!"
+
+ClojureProject.My.Math.greet("Alice")
+# => "Hello, Alice"
+```
+
+Multi-arity functions:
+- Support any number of arities from 0 parameters upward
+- Each arity clause has the form `([params] body...)`
+- Can include an optional docstring before arity clauses: `(defn name "doc" ([] ...) ([x] ...))`
+- Each arity must be unique (duplicate arities raise a compile error)
+- All arities must have at least one body expression
+- Work seamlessly with Elixir's pattern matching on function clauses
 
 The namespace `my.app.core` becomes `ClojureProject.My.App.Core` because modules are nested under the parent.
 
@@ -182,6 +242,7 @@ mix test
 - **Parent module function access** - Call Elixir functions defined in the parent module from Clojure code
 - **Automatic Kernel fallback** - Any Kernel function automatically available when not in parent module
 - **Improved error reporting** - Parse errors with line numbers, column numbers, and descriptive messages
+- **Multi-arity functions** - `defn` supports multiple arities with `(defn name ([] ...) ([x] ...) ([x y] ...))`
 - Function definitions with `defn` (with parameters)
 - String literals and concatenation with `str`
 - Numbers and arithmetic operations (`+`, `-`, `*`, `<`, `>`)
@@ -233,7 +294,7 @@ This helps developers quickly identify and fix undefined function calls by sugge
 ## Roadmap
 
 - True `recur` tail-call optimization
-- Multiple function arities (for `defn` and `fn`)
+- Multiple function arities for `fn` (anonymous functions)
 - Map destructuring
 - Destructuring in `let`
 - Anonymous function shorthand syntax `#(...)`

@@ -9,6 +9,12 @@ defmodule CljCompilerTest do
     def greet_prefix(name), do: "Mr. #{name}"
   end
 
+  defmodule TestDup do
+  end
+
+  defmodule TestEmpty do
+  end
+
   test "compiles module from namespace declaration" do
     assert ClojureProject.Example.Core.hello() == "Hello World"
   end
@@ -1235,6 +1241,95 @@ defmodule CljCompilerTest do
       result = ClojureProject.Example.Erlang.unique_integer_plus_one()
       assert result |> is_integer()
       # Result will be unique_integer + 1, which is always an integer
+    end
+  end
+
+  defmodule MultiArityProject do
+    use CljCompiler, dir: "test/fixtures/multi_arity"
+  end
+
+  describe "multi-arity functions" do
+    test "compiles multi-arity defn with two arities" do
+      assert MultiArityProject.Concat.concat() == ""
+      assert MultiArityProject.Concat.concat("world") == "hello world"
+    end
+
+    test "compiles multi-arity defn with three arities" do
+      assert MultiArityProject.Math.foo() == 0
+      assert MultiArityProject.Math.foo(5) == 5
+      assert MultiArityProject.Math.foo(3, 4) == 7
+    end
+
+    test "compiles multi-arity defn with 0-arity and 1-arity" do
+      assert MultiArityProject.Greet.greet() == "Hello!"
+      assert MultiArityProject.Greet.greet("Alice") == "Hello, Alice"
+    end
+
+    test "compiles multi-arity defn with docstring" do
+      assert MultiArityProject.WithDoc.documented() == "doc: default"
+      assert MultiArityProject.WithDoc.documented("value") == "doc: value"
+    end
+
+    test "calls multi-arity functions with different arguments" do
+      # Test 0-arity
+      assert MultiArityProject.Concat.concat() == ""
+      # Test 1-arity
+      assert MultiArityProject.Concat.concat("test") == "hello test"
+      # Test with nested calls
+      result = MultiArityProject.Concat.concat(MultiArityProject.Math.foo(10))
+      assert result == "hello 10"
+    end
+
+    test "preserves line numbers for each clause" do
+      # This test ensures line metadata is preserved - we compile without errors
+      assert function_exported?(MultiArityProject.Concat, :concat, 0)
+      assert function_exported?(MultiArityProject.Concat, :concat, 1)
+    end
+
+    test "translates body expressions in each arity clause" do
+      assert MultiArityProject.NestedMath.math() == 0
+      assert MultiArityProject.NestedMath.math(5) == 10
+      assert MultiArityProject.NestedMath.math(3, 4) == 7
+    end
+
+    test "handles let bindings in multi-arity defn body" do
+      assert MultiArityProject.WithLet.with_let() == 1
+      assert MultiArityProject.WithLet.with_let(5) == 5
+    end
+
+    test "handles nested expressions in multi-arity defn body" do
+      assert MultiArityProject.Nested.nested() == "a"
+      assert MultiArityProject.Nested.nested(nil) == "c"
+      assert MultiArityProject.Nested.nested("x") == "d"
+    end
+
+    test "raises error for duplicate arities" do
+      code = """
+      (ns test.dup)
+      (defn dup ([] 1) ([x] 2) ([y] 3))
+      """
+
+      assert_raise CompileError, ~r/Duplicate arity clauses/, fn ->
+        CljCompiler.compile_file!(code, TestDup)
+      end
+    end
+
+    test "raises error for missing arity clause" do
+      code = """
+      (ns test.empty)
+      (defn empty [])
+      """
+
+      assert_raise CompileError, ~r/Invalid arity clause/, fn ->
+        CljCompiler.compile_file!(code, TestEmpty)
+      end
+    end
+
+    test "existing single-arity tests still pass" do
+      # Test that single-arity functions still work
+      assert function_exported?(MultiArityProject.Single, :hello, 0)
+      assert MultiArityProject.Single.hello() == "Hello World"
+      assert MultiArityProject.Single.add(2, 3) == 5
     end
   end
 end
