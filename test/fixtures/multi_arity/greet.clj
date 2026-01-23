@@ -1,0 +1,2 @@
+(ns greet)
+(defn greet ([] "Hello!") ([name] (str "Hello, " name)))

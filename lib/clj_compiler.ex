@@ -33,6 +33,18 @@ defmodule CljCompiler do
     end
   end
 
+  def compile_file!(content, parent_module) do
+    {:ok, forms} = CljCompiler.Reader.parse(content, "compiled_code")
+    modules = extract_modules(forms, parent_module, "compiled_code")
+
+    Enum.each(modules, fn module_ast ->
+      {_, _, [module_name | _]} = module_ast
+      Module.create(module_name, module_ast, Macro.Env.location(__ENV__))
+    end)
+
+    :ok
+  end
+
   defp compile_file(content, parent_module, file) do
     {:ok, forms} = CljCompiler.Reader.parse(content, file)
     extract_modules(forms, parent_module, file)

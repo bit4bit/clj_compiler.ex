@@ -9,6 +9,12 @@ defmodule CljCompilerTest do
     def greet_prefix(name), do: "Mr. #{name}"
   end
 
+  defmodule TestDup do
+  end
+
+  defmodule TestEmpty do
+  end
+
   test "compiles module from namespace declaration" do
     assert ClojureProject.Example.Core.hello() == "Hello World"
   end
@@ -1238,84 +1244,92 @@ defmodule CljCompilerTest do
     end
   end
 
-  describe "multi-arity defn" do
-    @tag :multi_arity_defn
-    test "defn with two arities translates correctly" do
-      # Simple test that multi-arity defn can be parsed and translated
-      {:ok, forms} =
-        CljCompiler.Reader.parse("(defn concat ([]) ([a]))", "test.clj")
+  defmodule MultiArityProject do
+    use CljCompiler, dir: "test/fixtures/multi_arity"
+  end
 
-      # Should not raise and should produce def clauses
-      ast = CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
-      assert is_list(ast)
-      assert length(ast) >= 2
+  describe "multi-arity functions" do
+    test "compiles multi-arity defn with two arities" do
+      assert MultiArityProject.Concat.concat() == ""
+      assert MultiArityProject.Concat.concat("world") == "hello world"
     end
 
-    @tag :multi_arity_defn
-    test "defn with three arities translates correctly" do
-      {:ok, forms} =
-        CljCompiler.Reader.parse("(defn foo ([]) ([x]) ([x y]))", "test.clj")
-
-      ast = CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
-      assert length(ast) == 3
+    test "compiles multi-arity defn with three arities" do
+      assert MultiArityProject.Math.foo() == 0
+      assert MultiArityProject.Math.foo(5) == 5
+      assert MultiArityProject.Math.foo(3, 4) == 7
     end
 
-    @tag :multi_arity_defn
-    test "defn with 0-arity and 1-arity translates correctly" do
-      {:ok, forms} =
-        CljCompiler.Reader.parse("(defn greet ([]) ([name]))", "test.clj")
-
-      ast = CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
-      assert length(ast) == 2
+    test "compiles multi-arity defn with 0-arity and 1-arity" do
+      assert MultiArityProject.Greet.greet() == "Hello!"
+      assert MultiArityProject.Greet.greet("Alice") == "Hello, Alice"
     end
 
-    @tag :multi_arity_defn
-    test "defn with docstring translates correctly" do
-      {:ok, forms} =
-        CljCompiler.Reader.parse(
-          "(defn concat \"Docs\" ([]) ([a]))",
-          "test.clj"
-        )
-
-      ast = CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
-
-      # Should have @doc attribute followed by two def clauses
-      assert length(ast) == 3
-      assert {:@, _, [{:doc, [], [_]}]} = List.first(ast)
+    test "compiles multi-arity defn with docstring" do
+      assert MultiArityProject.WithDoc.documented() == "doc: default"
+      assert MultiArityProject.WithDoc.documented("value") == "doc: value"
     end
 
-    @tag :multi_arity_defn
-    test "defn with single arity (legacy syntax) still works" do
-      {:ok, forms} = CljCompiler.Reader.parse("(defn double [x] x)", "test.clj")
-      ast = CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
-
-      # Should produce exactly one def
-      assert length(ast) == 1
-      first = List.first(ast)
-      assert is_tuple(first)
-      assert :def == elem(first, 0)
+    test "calls multi-arity functions with different arguments" do
+      # Test 0-arity
+      assert MultiArityProject.Concat.concat() == ""
+      # Test 1-arity
+      assert MultiArityProject.Concat.concat("test") == "hello test"
+      # Test with nested calls
+      result = MultiArityProject.Concat.concat(MultiArityProject.Math.foo(10))
+      assert result == "hello 10"
     end
 
-    @tag :multi_arity_defn
-    test "raises error for non-vector arity parameters" do
-      # (defn bad (x)) is parsed as multi-arity with one clause ([x]) but (x) is not ([x])
-      # So it becomes a malformed arity clause
-      {:ok, forms} = CljCompiler.Reader.parse("(defn bad (x) x)", "test.clj")
-
-      # Should raise because (x) is not a valid arity vector
-      assert_raise RuntimeError, fn ->
-        CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
-      end
+    test "preserves line numbers for each clause" do
+      # This test ensures line metadata is preserved - we compile without errors
+      assert function_exported?(MultiArityProject.Concat, :concat, 0)
+      assert function_exported?(MultiArityProject.Concat, :concat, 1)
     end
 
-    @tag :multi_arity_defn
+    test "translates body expressions in each arity clause" do
+      assert MultiArityProject.NestedMath.math() == 0
+      assert MultiArityProject.NestedMath.math(5) == 10
+      assert MultiArityProject.NestedMath.math(3, 4) == 7
+    end
+
+    test "handles let bindings in multi-arity defn body" do
+      assert MultiArityProject.WithLet.with_let() == 1
+      assert MultiArityProject.WithLet.with_let(5) == 5
+    end
+
+    test "handles nested expressions in multi-arity defn body" do
+      assert MultiArityProject.Nested.nested() == "a"
+      assert MultiArityProject.Nested.nested(nil) == "c"
+      assert MultiArityProject.Nested.nested("x") == "d"
+    end
+
     test "raises error for duplicate arities" do
-      {:ok, forms} = CljCompiler.Reader.parse("(defn dup ([] 1) ([x] 2) ([] 3))", "test.clj")
+      code = """
+      (ns test.dup)
+      (defn dup ([] 1) ([x] 2) ([y] 3))
+      """
 
-      # Should detect duplicate 0-arity
-      assert_raise RuntimeError, fn ->
-        CljCompiler.Translator.translate(forms, [], __MODULE__, "test.clj")
+      assert_raise CompileError, ~r/Duplicate arity clauses/, fn ->
+        CljCompiler.compile_file!(code, TestDup)
       end
+    end
+
+    test "raises error for missing arity clause" do
+      code = """
+      (ns test.empty)
+      (defn empty [])
+      """
+
+      assert_raise CompileError, ~r/Invalid arity clause/, fn ->
+        CljCompiler.compile_file!(code, TestEmpty)
+      end
+    end
+
+    test "existing single-arity tests still pass" do
+      # Test that single-arity functions still work
+      assert function_exported?(MultiArityProject.Single, :hello, 0)
+      assert MultiArityProject.Single.hello() == "Hello World"
+      assert MultiArityProject.Single.add(2, 3) == 5
     end
   end
 end

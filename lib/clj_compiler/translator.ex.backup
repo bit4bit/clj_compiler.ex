@@ -31,6 +31,19 @@ defmodule CljCompiler.Translator do
   end
 
   defp translate_form(
+         {:list, [{:symbol, "ns"} | _]},
+         _parent_module,
+         _attr_names,
+         _param_names,
+         _local_functions,
+         _namespace_uses,
+         _file
+       ) do
+    []
+  end
+
+  # Handle def (module attribute)
+  defp translate_form(
          {:list, [{:symbol, "def"}, {:symbol, name}, value], _line},
          parent_module,
          attr_names,
@@ -45,10 +58,24 @@ defmodule CljCompiler.Translator do
     {:@, [file: to_charlist(file), line: 1], [{attr_name, [], [value_ast]}]}
   end
 
-  # Multi-arity defn: (defn name ([params] body) ([params] body) ...)
-  # or with docstring: (defn name "doc" ([params] body) ([params] body) ...)
   defp translate_form(
-         {:list, [{:symbol, "defn"}, {:symbol, name} | rest], line},
+         {:list, [{:symbol, "def"}, {:symbol, name}, value]},
+         parent_module,
+         attr_names,
+         _param_names,
+         _local_functions,
+         _namespace_uses,
+         file
+       ) do
+    attr_name = symbol_to_atom(name)
+    value_ast = translate_expr(value, parent_module, attr_names, [], [], [], file)
+
+    {:@, [file: to_charlist(file), line: 1], [{attr_name, [], [value_ast]}]}
+  end
+
+  # Single-arity defn with line info (legacy support)
+  defp translate_form(
+         {:list, [{:symbol, "defn"}, {:symbol, name}, {:vector, params} | body], line},
          parent_module,
          attr_names,
          _param_names,
@@ -58,166 +85,348 @@ defmodule CljCompiler.Translator do
        ) do
     function_name = symbol_to_atom(name)
 
-    # Check if this is multi-arity by examining the first element after name
-    {docstring, arity_clauses} = extract_docstring_and_clauses(rest)
+    param_names = Enum.map(params, fn {:symbol, p} -> p end)
 
-    case detect_defn_type(arity_clauses) do
-      :multi_arity ->
-        # Generate multiple def clauses, one for each arity
-        arities =
-          Enum.map(arity_clauses, fn
-            {:list, [{:vector, params} | _body], _line} -> length(params)
-            {:list, [{:vector, params} | _body]} -> length(params)
-          end)
+    param_vars =
+      Enum.map(params, fn {:symbol, p} ->
+        {String.to_atom(p), [file: to_charlist(file), line: line], nil}
+      end)
 
-        # Check for duplicate arities
-        if length(arities) != length(Enum.uniq(arities)) do
-          raise CompileError,
-            file: file,
-            line: line,
-            description: "Duplicate arity clauses in defn #{name}"
-        end
+    body_ast =
+      translate_body(
+        body,
+        parent_module,
+        attr_names,
+        param_names,
+        local_functions,
+        namespace_uses,
+        file
+      )
 
-        # Validate that each arity clause has a body
-        Enum.each(arity_clauses, fn clause ->
-          case clause do
-            {:list, [{:vector, _params}], _line} ->
-              raise CompileError,
-                file: file,
-                line: line,
-                description:
-                  "Invalid arity clause in defn #{name}: each arity must have a body expression"
+    {:def, [file: to_charlist(file), line: line],
+     [
+       {function_name, [file: to_charlist(file), line: line], param_vars},
+       [do: body_ast]
+     ]}
+  end
 
-            {:list, [{:vector, _params}]} ->
-              raise CompileError,
-                file: file,
-                line: line,
-                description:
-                  "Invalid arity clause in defn #{name}: each arity must have a body expression"
+  # Multi-arity defn with line info: (defn name "docstring" ([params] body) ...)
+  # Third element is a string - multi-arity with docstring
+  defp translate_form(
+         {:list, [{:symbol, "defn"}, {:symbol, name}, {:string, _} | rest], line},
+         parent_module,
+         attr_names,
+         _param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    {docstring, clauses} = parse_defn_rest(rest, line, file)
+    function_name = symbol_to_atom(name)
 
-            _ ->
-              :ok
-          end
-        end)
+    # Validate clauses
+    if Enum.empty?(clauses) do
+      raise "defn #{name} requires at least one arity clause"
+    end
 
-        # Generate a def for each arity clause
-        defs =
-          Enum.map(arity_clauses, fn clause ->
-            {params, body, clause_line} =
-              case clause do
-                {:list, [{:vector, p} | b], l} -> {p, b, l}
-                {:list, [{:vector, p} | b]} -> {p, b, line}
-              end
+    # Check for duplicate arities
+    arity_counts =
+      Enum.map(clauses, fn {{:vector, params}, _body, _line} -> length(params) end)
+      |> Enum.frequencies()
 
-            param_names = Enum.map(params, fn {:symbol, p} -> p end)
+    if Enum.any?(arity_counts, fn {_, count} -> count > 1 end) do
+      duplicate_arities =
+        arity_counts
+        |> Enum.filter(fn {_, count} -> count > 1 end)
+        |> Enum.map(fn {arity, _} -> arity end)
+        |> Enum.join(", ")
 
-            param_vars =
-              Enum.map(params, fn {:symbol, p} ->
-                {String.to_atom(p), [file: to_charlist(file), line: clause_line], nil}
-              end)
+      raise "defn #{name} has duplicate arities: #{duplicate_arities}"
+    end
 
-            body_ast =
-              translate_body(
-                body,
-                parent_module,
-                attr_names,
-                param_names,
-                local_functions,
-                namespace_uses,
-                file
-              )
+    # Translate each arity clause - each clause generates a separate def
+    def_asts =
+      Enum.map(clauses, fn {{:vector, params}, body, clause_line} ->
+        translate_defn_clause(
+          function_name,
+          params,
+          body,
+          clause_line,
+          file,
+          parent_module,
+          attr_names,
+          local_functions,
+          namespace_uses
+        )
+      end)
 
-            {:def, [file: to_charlist(file), line: clause_line],
-             [
-               {function_name, [file: to_charlist(file), line: clause_line], param_vars},
-               [do: body_ast]
-             ]}
-          end)
+    # Add docstring as @doc attribute
+    doc_attr_asts = [
+      {:@, [file: to_charlist(file), line: line], [{:doc, [], [docstring]}]}
+    ]
 
-        # If there's a docstring, prepend it as @doc
-        if docstring do
-          doc_attr = {:@, [file: to_charlist(file), line: line], [{:doc, [], [docstring]}]}
-          [doc_attr | defs]
-        else
-          defs
-        end
+    # Return list of defs (doc attribute + one def per arity)
+    [doc_attr_asts | def_asts]
+  end
 
-      :single_arity ->
-        # Handle traditional single-arity defn: (defn name [params] body)
-        [{:vector, params} | body] = arity_clauses
+  # Multi-arity defn with line info: (defn name ([params] body) ([params] body) ...)
+  # Third element is a list - multi-arity without docstring
+  defp translate_form(
+         {:list, [{:symbol, "defn"}, {:symbol, name}, {:list, _} | _rest] = full_form, line},
+         parent_module,
+         attr_names,
+         _param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    # Extract rest after name (third element onwards)
+    rest = Enum.drop(full_form, 2)
+    {docstring, clauses} = parse_defn_rest(rest, file, line)
+    function_name = symbol_to_atom(name)
 
-        # Validate that single-arity defn has at least one body expression
-        if body == [] do
-          raise CompileError,
-            file: file,
-            line: line,
-            description:
-              "Invalid arity clause in defn #{name}: function must have a body expression"
-        end
+    # Validate clauses
+    if Enum.empty?(clauses) do
+      raise "defn #{name} requires at least one arity clause"
+    end
 
-        param_names = Enum.map(params, fn {:symbol, p} -> p end)
+    # Check for duplicate arities
+    arity_counts =
+      Enum.map(clauses, fn {{:vector, params}, _body, _line} -> length(params) end)
+      |> Enum.frequencies()
 
-        param_vars =
-          Enum.map(params, fn {:symbol, p} ->
-            {String.to_atom(p), [file: to_charlist(file), line: line], nil}
-          end)
+    if Enum.any?(arity_counts, fn {_, count} -> count > 1 end) do
+      duplicate_arities =
+        arity_counts
+        |> Enum.filter(fn {_, count} -> count > 1 end)
+        |> Enum.map(fn {arity, _} -> arity end)
+        |> Enum.join(", ")
 
-        body_ast =
-          translate_body(
-            body,
-            parent_module,
-            attr_names,
-            param_names,
-            local_functions,
-            namespace_uses,
-            file
-          )
+      raise "defn #{name} has duplicate arities: #{duplicate_arities}"
+    end
 
-        def_clause =
-          {:def, [file: to_charlist(file), line: line],
-           [
-             {function_name, [file: to_charlist(file), line: line], param_vars},
-             [do: body_ast]
-           ]}
+    # Translate each arity clause - each clause generates a separate def
+    def_asts =
+      Enum.map(clauses, fn {{:vector, params}, body, clause_line} ->
+        translate_defn_clause(
+          function_name,
+          params,
+          body,
+          clause_line,
+          file,
+          parent_module,
+          attr_names,
+          local_functions,
+          namespace_uses
+        )
+      end)
 
-        # If there's a docstring, prepend it as @doc
-        if docstring do
-          doc_attr = {:@, [file: to_charlist(file), line: line], [{:doc, [], [docstring]}]}
-          [doc_attr, def_clause]
-        else
-          def_clause
-        end
+    # Add docstring as @doc attribute if present
+    doc_attr_asts =
+      if docstring do
+        [
+          {:@, [file: to_charlist(file), line: line], [{:doc, [], [docstring]}]}
+        ]
+      else
+        []
+      end
+
+    # Return list of defs (doc attribute + one def per arity)
+    [doc_attr_asts, def_asts] |> List.flatten()
+  end
+
+  # Multi-arity defn without line info
+  # Multi-arity defn without line info - third element is a string (docstring)
+  defp translate_form(
+         {:list, [{:symbol, "defn"}, {:symbol, name}, {:string, _} | rest]},
+         parent_module,
+         attr_names,
+         _param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    {docstring, clauses} = parse_defn_rest(rest, 1, file)
+    function_name = symbol_to_atom(name)
+
+    # Validate clauses
+    if Enum.empty?(clauses) do
+      raise "defn #{name} requires at least one arity clause"
+    end
+
+    # Check for duplicate arities
+    arity_counts =
+      Enum.map(clauses, fn {{:vector, params}, _body, _line} -> length(params) end)
+      |> Enum.frequencies()
+
+    if Enum.any?(arity_counts, fn {_, count} -> count > 1 end) do
+      duplicate_arities =
+        arity_counts
+        |> Enum.filter(fn {_, count} -> count > 1 end)
+        |> Enum.map(fn {arity, _} -> arity end)
+        |> Enum.join(", ")
+
+      raise "defn #{name} has duplicate arities: #{duplicate_arities}"
+    end
+
+    # Translate each arity clause
+    def_asts =
+      Enum.map(clauses, fn {{:vector, params}, body, _clause_line} ->
+        translate_defn_clause(
+          function_name,
+          params,
+          body,
+          1,
+          file,
+          parent_module,
+          attr_names,
+          local_functions,
+          namespace_uses
+        )
+      end)
+
+    # Add docstring as @doc attribute
+    doc_attr_asts = [
+      {:@, [file: to_charlist(file), line: 1], [{:doc, [], [docstring]}]}
+    ]
+
+    # Return list of defs
+    [doc_attr_asts | def_asts]
+  end
+
+  # Multi-arity defn without line info - third element is a list
+  defp translate_form(
+         {:list, [{:symbol, "defn"}, {:symbol, name}, {:list, _} | _rest] = full_form},
+         parent_module,
+         attr_names,
+         _param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    # Extract rest after name (third element onwards)
+    rest = Enum.drop(full_form, 2)
+    {docstring, clauses} = parse_defn_rest(rest, 1, file)
+    function_name = symbol_to_atom(name)
+
+    # Validate clauses
+    if Enum.empty?(clauses) do
+      raise "defn #{name} requires at least one arity clause"
+    end
+
+    # Check for duplicate arities
+    arity_counts =
+      Enum.map(clauses, fn {{:vector, params}, _body, _line} -> length(params) end)
+      |> Enum.frequencies()
+
+    if Enum.any?(arity_counts, fn {_, count} -> count > 1 end) do
+      duplicate_arities =
+        arity_counts
+        |> Enum.filter(fn {_, count} -> count > 1 end)
+        |> Enum.map(fn {arity, _} -> arity end)
+        |> Enum.join(", ")
+
+      raise "defn #{name} has duplicate arities: #{duplicate_arities}"
+    end
+
+    # Translate each arity clause
+    def_asts =
+      Enum.map(clauses, fn {{:vector, params}, body, _clause_line} ->
+        translate_defn_clause(
+          function_name,
+          params,
+          body,
+          1,
+          file,
+          parent_module,
+          attr_names,
+          local_functions,
+          namespace_uses
+        )
+      end)
+
+    # Add docstring as @doc attribute if present
+    doc_attr_asts =
+      if docstring do
+        [
+          {:@, [file: to_charlist(file), line: 1], [{:doc, [], [docstring]}]}
+        ]
+      else
+        []
+      end
+
+    # Return list of defs
+    [doc_attr_asts, def_asts] |> List.flatten()
+  end
+
+  # Parse arity clauses: ([params] body ...)
+  # Returns {[{:vector, params}, body_list, line], remaining}
+  defp parse_arity_clauses([], acc), do: {Enum.reverse(acc), []}
+
+  defp parse_arity_clauses([{:list, [{:vector, params} | bodies], line} | rest], acc) do
+    parse_arity_clauses(rest, [{{:vector, params}, bodies, line} | acc])
+  end
+
+  defp parse_arity_clauses([{:list, [{:vector, params} | bodies]} | rest], acc) do
+    parse_arity_clauses(rest, [{{:vector, params}, bodies, 1} | acc])
+  end
+
+  defp parse_arity_clauses([other | _rest], _acc) do
+    raise "Expected vector for arity parameters, got: #{inspect(other)}"
+  end
+
+  # Parse the rest of defn form to extract docstring and arity clauses
+  # Returns {docstring_or_nil, [{:vector, params}, body_list, line] or [{:list, [{:vector, params} | body]}, line]}
+  defp parse_defn_rest(rest, _default_line, _file) do
+    case rest do
+      # Docstring followed by arity clauses
+      [{:string, docstring} | clauses] ->
+        {parsed_clauses, _} = parse_arity_clauses(clauses, [])
+        {docstring, parsed_clauses}
+
+      # No docstring, just arity clauses
+      clauses ->
+        {parsed_clauses, _} = parse_arity_clauses(clauses, [])
+        {nil, parsed_clauses}
     end
   end
 
-  # Helper to extract optional docstring from defn arguments
-  defp extract_docstring_and_clauses([{:string, docstring} | rest]) do
-    {docstring, rest}
-  end
+  # Translate a single defn arity clause
+  defp translate_defn_clause(
+         function_name,
+         params,
+         body,
+         line,
+         file,
+         parent_module,
+         attr_names,
+         local_functions,
+         namespace_uses
+       ) do
+    param_names = Enum.map(params, fn {:symbol, p} -> p end)
 
-  defp extract_docstring_and_clauses(clauses) do
-    {nil, clauses}
-  end
+    param_vars =
+      Enum.map(params, fn {:symbol, p} ->
+        {String.to_atom(p), [file: to_charlist(file), line: line], nil}
+      end)
 
-  # Helper to detect if this is single-arity or multi-arity defn
-  defp detect_defn_type([{:vector, _params} | _body]) do
-    # Single-arity: starts with a vector
-    :single_arity
-  end
+    body_ast =
+      translate_body(
+        body,
+        parent_module,
+        attr_names,
+        param_names,
+        local_functions,
+        namespace_uses,
+        file
+      )
 
-  defp detect_defn_type([{:list, [{:vector, _params} | _body], _line} | _rest]) do
-    # Multi-arity: starts with a list containing a vector
-    :multi_arity
-  end
-
-  defp detect_defn_type([{:list, [{:vector, _params} | _body]} | _rest]) do
-    # Multi-arity without line metadata
-    :multi_arity
-  end
-
-  defp detect_defn_type(_) do
-    # Default to single-arity for backward compatibility
-    :single_arity
+    # Generate a separate def for each arity
+    {:def, [file: to_charlist(file), line: line],
+     [
+       {function_name, [file: to_charlist(file), line: line], param_vars},
+       [do: body_ast]
+     ]}
   end
 
   defp translate_form(
@@ -235,12 +444,28 @@ defmodule CljCompiler.Translator do
       description: "Unable to resolve symbol: #{unknown_symbol} in this context"
   end
 
+  defp translate_form(
+         {:list, [{:symbol, unknown_symbol} | _]},
+         _parent_module,
+         _attr_names,
+         _param_names,
+         _local_functions,
+         _namespace_uses,
+         file
+       ) do
+    raise CompileError,
+      file: file,
+      line: 1,
+      description: "Unable to resolve symbol: #{unknown_symbol} in this context"
+  end
+
   defp translate_form(_, _, _, _, _, _, _), do: []
 
   defp extract_attr_names(forms) do
     forms
     |> Enum.flat_map(fn
       {:list, [{:symbol, "def"}, {:symbol, name}, _], _line} -> [name]
+      {:list, [{:symbol, "def"}, {:symbol, name}, _]} -> [name]
       _ -> []
     end)
     |> MapSet.new()
@@ -344,6 +569,26 @@ defmodule CljCompiler.Translator do
 
   defp translate_expr(
          {:map, elements, _line},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    translate_map(
+      elements,
+      parent_module,
+      attr_names,
+      param_names,
+      local_functions,
+      namespace_uses,
+      file
+    )
+  end
+
+  defp translate_expr(
+         {:map, elements},
          parent_module,
          attr_names,
          param_names,
@@ -1305,10 +1550,10 @@ defmodule CljCompiler.Translator do
   defp extract_function_names(forms) do
     forms
     |> Enum.flat_map(fn
-      {:list, [{:symbol, "defn"}, {:symbol, name} | _rest], _line} ->
+      {:list, [{:symbol, "defn"}, {:symbol, name}, {:vector, _} | _], _line} ->
         [String.replace(name, "-", "_")]
 
-      {:list, [{:symbol, "defn"}, {:symbol, name} | _rest]} ->
+      {:list, [{:symbol, "defn"}, {:symbol, name}, {:vector, _} | _]} ->
         [String.replace(name, "-", "_")]
 
       _ ->
@@ -1375,7 +1620,7 @@ defmodule CljCompiler.Translator do
 
   defp is_compat_function?(fn_name) do
     normalized = String.replace(fn_name, "-", "_")
-    normalized in ~w(conj dissoc assoc get assoc_in nil?)
+    normalized in ~w(conj dissoc assoc get assoc_in)
   end
 
   defp is_exception_constructor?(fn_name) do
