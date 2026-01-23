@@ -190,6 +190,23 @@ defmodule CljCompiler.Translator do
     end
   end
 
+  defp translate_form(
+         {:list, [{:symbol, unknown_symbol} | _], line},
+         _parent_module,
+         _attr_names,
+         _param_names,
+         _local_functions,
+         _namespace_uses,
+         file
+       ) do
+    raise CompileError,
+      file: file,
+      line: line,
+      description: "Unable to resolve symbol: #{unknown_symbol} in this context"
+  end
+
+  defp translate_form(_, _, _, _, _, _, _), do: []
+
   # Helper to extract optional docstring from defn arguments
   defp extract_docstring_and_clauses([{:string, docstring} | rest]) do
     {docstring, rest}
@@ -219,23 +236,6 @@ defmodule CljCompiler.Translator do
     # Default to single-arity for backward compatibility
     :single_arity
   end
-
-  defp translate_form(
-         {:list, [{:symbol, unknown_symbol} | _], line},
-         _parent_module,
-         _attr_names,
-         _param_names,
-         _local_functions,
-         _namespace_uses,
-         file
-       ) do
-    raise CompileError,
-      file: file,
-      line: line,
-      description: "Unable to resolve symbol: #{unknown_symbol} in this context"
-  end
-
-  defp translate_form(_, _, _, _, _, _, _), do: []
 
   defp extract_attr_names(forms) do
     forms
@@ -1180,53 +1180,6 @@ defmodule CljCompiler.Translator do
       namespace_uses,
       file,
       true
-    )
-  end
-
-  defp translate_expr(
-         {:list, [{:symbol, fn_name} | args], line},
-         parent_module,
-         attr_names,
-         param_names,
-         local_functions,
-         namespace_uses,
-         file
-       ) do
-    validate_function_call!(
-      fn_name,
-      parent_module,
-      attr_names,
-      param_names,
-      local_functions,
-      namespace_uses,
-      file,
-      line
-    )
-
-    translated_args =
-      Enum.map(
-        args,
-        &translate_expr(
-          &1,
-          parent_module,
-          attr_names,
-          param_names,
-          local_functions,
-          namespace_uses,
-          file
-        )
-      )
-
-    build_function_call_ast(
-      fn_name,
-      translated_args,
-      parent_module,
-      attr_names,
-      param_names,
-      local_functions,
-      namespace_uses,
-      file,
-      false
     )
   end
 
