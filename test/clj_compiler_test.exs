@@ -1332,4 +1332,126 @@ defmodule CljCompilerTest do
       assert MultiArityProject.Single.add(2, 3) == 5
     end
   end
+
+  describe "test_compat.clj compatibility functions" do
+    test "test-conj adds element to front of vector" do
+      assert ClojureProject.Test.Compat.test_conj() == [0, 1]
+    end
+
+    test "test-conj-empty prepends to empty list" do
+      assert ClojureProject.Test.Compat.test_conj_empty() == [1]
+    end
+
+    test "test-conj-multiple prepends multiple items" do
+      assert ClojureProject.Test.Compat.test_conj_multiple() == [1, 2, 3]
+    end
+
+    test "test-get retrieves value from map by key" do
+      map = %{key: "value", other: "different"}
+      assert ClojureProject.Test.Compat.test_get(map) == "value"
+    end
+
+    test "test-get-missing returns nil for missing key" do
+      assert ClojureProject.Test.Compat.test_get_missing() == nil
+    end
+
+    test "test-get-with-default returns default value" do
+      assert ClojureProject.Test.Compat.test_get_with_default() == "default"
+    end
+
+    test "test-get-default-unused ignores default when key exists" do
+      assert ClojureProject.Test.Compat.test_get_default_unused() == 1
+    end
+
+    test "test-get returns nil for missing key" do
+      map = %{other: "value"}
+      assert ClojureProject.Test.Compat.test_get(map) == nil
+    end
+
+    test "test-assoc adds key-value pair to map" do
+      assert ClojureProject.Test.Compat.test_assoc() == %{a: 1, b: 2}
+    end
+
+    test "test-assoc-update updates existing key" do
+      assert ClojureProject.Test.Compat.test_assoc_update() == %{a: 2}
+    end
+
+    test "test-assoc-empty adds to empty map" do
+      assert ClojureProject.Test.Compat.test_assoc_empty() == %{a: 1}
+    end
+
+    test "test-dissoc removes keys from map using vector" do
+      assert ClojureProject.Test.Compat.test_dissoc() == %{b: 2}
+    end
+
+    test "test-dissoc-single removes single key" do
+      assert ClojureProject.Test.Compat.test_dissoc_single() == %{b: 2}
+    end
+
+    test "test-dissoc-empty returns original map when no keys to remove" do
+      assert ClojureProject.Test.Compat.test_dissoc_empty() == %{a: 1, b: 2}
+    end
+
+    test "test-assoc-in updates nested value in map" do
+      assert ClojureProject.Test.Compat.test_assoc_in() == %{a: %{b: 2}}
+    end
+
+    test "test-assoc-in-nested updates deeply nested value" do
+      assert ClojureProject.Test.Compat.test_assoc_in_nested() == %{a: %{b: %{c: 1}}}
+    end
+
+    test "test-assoc-in-single sets value at single level" do
+      assert ClojureProject.Test.Compat.test_assoc_in_single() == %{a: 1}
+    end
+
+    test "test-inc increments positive number" do
+      assert ClojureProject.Test.Compat.test_inc() == 2
+    end
+
+    test "test-inc-zero increments zero" do
+      assert ClojureProject.Test.Compat.test_inc_zero() == 1
+    end
+
+    test "test-inc-negative increments negative number" do
+      assert ClojureProject.Test.Compat.test_inc_negative() == 0
+    end
+
+    test "test-map doubles numbers in list" do
+      assert ClojureProject.Test.Compat.test_map() == [2, 4, 6]
+    end
+
+    test "test-map-empty returns empty list" do
+      assert ClojureProject.Test.Compat.test_map_empty() == []
+    end
+
+    test "test-nil-false returns false for zero" do
+      assert ClojureProject.Test.Compat.test_nil_false() == false
+    end
+
+    test "test-nil-string returns false for empty string" do
+      assert ClojureProject.Test.Compat.test_nil_string() == false
+    end
+
+    test "test-nil-map returns false for map" do
+      assert ClojureProject.Test.Compat.test_nil_map() == false
+    end
+
+    test "test-nil-list returns false for list" do
+      assert ClojureProject.Test.Compat.test_nil_list() == false
+    end
+
+    test "test-kw converts map to keyword list" do
+      assert ClojureProject.Test.Compat.test_kw() == [a: 1, b: 2]
+    end
+
+    test "test-kw-empty converts empty map to empty list" do
+      assert ClojureProject.Test.Compat.test_kw_empty() == []
+    end
+
+    test "test-kw-nested converts map with nested structures" do
+      result = ClojureProject.Test.Compat.test_kw_nested()
+      assert Keyword.get(result, :a) == %{b: 1}
+      assert Keyword.get(result, :c) == [1, 2]
+    end
+  end
 end
