@@ -185,6 +185,7 @@ defmodule CljCompiler.Reader do
                 :paren -> "parenthesis"
                 :bracket -> "bracket"
                 :brace -> "brace"
+                :tuple -> "tuple"
               end
 
             raise ParseError,
@@ -213,6 +214,11 @@ defmodule CljCompiler.Reader do
         new_stack = [{:brace, line, col} | stack]
         {form, remaining, final_stack} = parse_map(rest, [], false, new_stack, file)
         do_parse_tokens(remaining, file, [{:map, form, line} | acc], final_stack)
+
+      [{:tuple_open, _value, line, col} | rest] ->
+        new_stack = [{:tuple, line, col} | stack]
+        {form, remaining, final_stack} = parse_tuple(rest, [], false, new_stack, file)
+        do_parse_tokens(remaining, file, [{:tuple, form, line} | acc], final_stack)
 
       [{:paren_close, _value, line, col} | _rest] ->
         case stack do
@@ -313,6 +319,12 @@ defmodule CljCompiler.Reader do
     {:skip, remaining}
   end
 
+  defp skip_next_form([{:tuple_open, _value, line, col} | rest], stack) do
+    new_stack = [{:tuple, line, col} | stack]
+    {_form, remaining, _final_stack} = parse_tuple(rest, [], false, new_stack, "clj")
+    {:skip, remaining}
+  end
+
   defp skip_next_form([_token | rest], _stack), do: {:skip, rest}
 
   # --- List parsing ---
@@ -403,6 +415,12 @@ defmodule CljCompiler.Reader do
     parse_list(remaining, [{:map, nested_map} | acc], nested, final_stack, file)
   end
 
+  defp parse_list([{:tuple_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:tuple, line, col} | stack]
+    {nested_tuple, remaining, final_stack} = parse_tuple(rest, [], true, new_stack, file)
+    parse_list(remaining, [{:tuple, nested_tuple} | acc], nested, final_stack, file)
+  end
+
   defp parse_list([token | rest], acc, nested, stack, file) do
     parse_list(rest, [parse_atom(token) | acc], nested, stack, file)
   end
@@ -417,6 +435,7 @@ defmodule CljCompiler.Reader do
         :paren -> "parenthesis"
         :bracket -> "bracket"
         :brace -> "brace"
+        :tuple -> "tuple"
       end
 
     raise ParseError,
@@ -498,6 +517,12 @@ defmodule CljCompiler.Reader do
     parse_vector(remaining, [{:map, nested_map} | acc], nested, final_stack, file)
   end
 
+  defp parse_vector([{:tuple_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:tuple, line, col} | stack]
+    {nested_tuple, remaining, final_stack} = parse_tuple(rest, [], true, new_stack, file)
+    parse_vector(remaining, [{:tuple, nested_tuple} | acc], nested, final_stack, file)
+  end
+
   defp parse_vector([token | rest], acc, nested, stack, file) do
     parse_vector(rest, [parse_atom(token) | acc], nested, stack, file)
   end
@@ -512,6 +537,7 @@ defmodule CljCompiler.Reader do
         :paren -> "parenthesis"
         :bracket -> "bracket"
         :brace -> "brace"
+        :tuple -> "tuple"
       end
 
     raise ParseError,
@@ -589,8 +615,99 @@ defmodule CljCompiler.Reader do
     parse_map(remaining, [{:map, nested_map} | acc], nested, final_stack, file)
   end
 
+  defp parse_map([{:tuple_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:tuple, line, col} | stack]
+    {nested_tuple, remaining, final_stack} = parse_tuple(rest, [], true, new_stack, file)
+    parse_map(remaining, [{:tuple, nested_tuple} | acc], nested, final_stack, file)
+  end
+
   defp parse_map([token | rest], acc, nested, stack, file) do
     parse_map(rest, [parse_atom(token) | acc], nested, stack, file)
+  end
+
+  # --- Tuple parsing ---
+  defp parse_tuple([], _acc, _nested, stack, file) do
+    {_delimiter_type, open_line, open_col} = List.last(stack)
+
+    raise ParseError,
+      reason:
+        "Missing closing bracket for tuple opening at line #{open_line}, column #{open_col} in #{file}",
+      line: open_line,
+      column: open_col,
+      file: file
+  end
+
+  defp parse_tuple([{:bracket_close, _value, _line, _col} | rest], acc, _nested, stack, _file) do
+    case stack do
+      [{:tuple, _open_line, _open_col} | remaining_stack] ->
+        {Enum.reverse(acc), rest, remaining_stack}
+
+      _ ->
+        {Enum.reverse(acc), rest, stack}
+    end
+  end
+
+  defp parse_tuple([{:paren_close, _value, line, col} | _rest], _acc, _nested, stack, file) do
+    case stack do
+      [{:tuple, open_line, open_col} | _] ->
+        raise ParseError,
+          reason:
+            "Unexpected closing parenthesis; expected closing bracket for tuple opening at line #{open_line}, column #{open_col} in #{file}",
+          line: line,
+          column: col,
+          file: file
+
+      _ ->
+        raise ParseError, reason: "mismatched paren in tuple", line: line, column: col, file: file
+    end
+  end
+
+  defp parse_tuple([{:brace_close, _value, line, col} | _rest], _acc, _nested, stack, file) do
+    case stack do
+      [{:tuple, open_line, open_col} | _] ->
+        raise ParseError,
+          reason:
+            "Unexpected closing brace; expected closing bracket for tuple opening at line #{open_line}, column #{open_col} in #{file}",
+          line: line,
+          column: col,
+          file: file
+
+      _ ->
+        raise ParseError, reason: "mismatched brace in tuple", line: line, column: col, file: file
+    end
+  end
+
+  defp parse_tuple([{:discard, _value, _line, _col} | rest], acc, nested, stack, file) do
+    {_skip, remaining} = skip_next_form(rest, stack)
+    parse_tuple(remaining, acc, nested, stack, file)
+  end
+
+  defp parse_tuple([{:paren_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:paren, line, col} | stack]
+    {nested_list, remaining, final_stack} = parse_list(rest, [], true, new_stack, file)
+    parse_tuple(remaining, [{:list, nested_list} | acc], nested, final_stack, file)
+  end
+
+  defp parse_tuple([{:bracket_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:bracket, line, col} | stack]
+    {nested_vector, remaining, final_stack} = parse_vector(rest, [], true, new_stack, file)
+    parse_tuple(remaining, [{:vector, nested_vector} | acc], nested, final_stack, file)
+  end
+
+  defp parse_tuple([{:brace_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:brace, line, col} | stack]
+    {nested_map, remaining, final_stack} = parse_map(rest, [], true, new_stack, file)
+    parse_tuple(remaining, [{:map, nested_map} | acc], nested, final_stack, file)
+  end
+
+  defp parse_tuple([{:tuple_open, _value, line, col} | rest], acc, nested, stack, file) do
+    new_stack = [{:tuple, line, col} | stack]
+    {nested_tuple, remaining, final_stack} = parse_tuple(rest, [], true, new_stack, file)
+    parse_tuple(remaining, [{:tuple, nested_tuple} | acc], nested, final_stack, file)
+  end
+
+  defp parse_tuple([token | rest], acc, nested, stack, file) do
+    parse_tuple(rest, [parse_atom(token) | acc], nested, stack, file)
   end
 
   # --- Atom parsing ---

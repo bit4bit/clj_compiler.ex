@@ -205,6 +205,50 @@ defmodule CljCompiler.Translator do
       description: "Unable to resolve symbol: #{unknown_symbol} in this context"
   end
 
+  defp translate_form(
+         {:tuple, elements, _line},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    [
+      translate_expr(
+        {:tuple, elements},
+        parent_module,
+        attr_names,
+        param_names,
+        local_functions,
+        namespace_uses,
+        file
+      )
+    ]
+  end
+
+  defp translate_form(
+         {:tuple, elements},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    [
+      translate_expr(
+        {:tuple, elements},
+        parent_module,
+        attr_names,
+        param_names,
+        local_functions,
+        namespace_uses,
+        file
+      )
+    ]
+  end
+
   defp translate_form(_, _, _, _, _, _, _), do: []
 
   # Helper to extract optional docstring from defn arguments
@@ -515,6 +559,72 @@ defmodule CljCompiler.Translator do
       )
 
     translated
+  end
+
+  defp translate_expr(
+         {:tuple, elements},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    translate_tuple(
+      elements,
+      parent_module,
+      attr_names,
+      param_names,
+      local_functions,
+      namespace_uses,
+      file
+    )
+  end
+
+  defp translate_expr(
+         {:tuple, elements, _line},
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    translate_tuple(
+      elements,
+      parent_module,
+      attr_names,
+      param_names,
+      local_functions,
+      namespace_uses,
+      file
+    )
+  end
+
+  defp translate_tuple(
+         elements,
+         parent_module,
+         attr_names,
+         param_names,
+         local_functions,
+         namespace_uses,
+         file
+       ) do
+    translated_elements =
+      Enum.map(
+        elements,
+        &translate_expr(
+          &1,
+          parent_module,
+          attr_names,
+          param_names,
+          local_functions,
+          namespace_uses,
+          file
+        )
+      )
+
+    {:{}, [], translated_elements}
   end
 
   defp translate_expr(

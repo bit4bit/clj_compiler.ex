@@ -1520,4 +1520,256 @@ defmodule CljCompilerTest do
       assert false_count == 1
     end
   end
+
+  describe "tuple syntax" do
+    test "parses simple tuple with atoms" do
+      source = "#[:a :b]"
+
+      {:ok, result} = CljCompiler.Reader.parse(source, "test.clj")
+      assert [{:tuple, [keyword: :a, keyword: :b], _}] = result
+    end
+
+    test "parses empty tuple" do
+      source = "#[]"
+
+      {:ok, result} = CljCompiler.Reader.parse(source, "test.clj")
+      assert [{:tuple, [], _}] = result
+    end
+
+    test "parses tuple with single element" do
+      source = "#[{:a}]"
+
+      {:ok, result} = CljCompiler.Reader.parse(source, "test.clj")
+      assert [{:tuple, [{:map, elements}], _}] = result
+      assert {:keyword, :a} in elements
+    end
+
+    test "parses tuple with multiple elements" do
+      source = "#[{:a 1} [1 2]]"
+
+      {:ok, result} = CljCompiler.Reader.parse(source, "test.clj")
+      assert [{:tuple, [{:map, _}, {:vector, _}], _}] = result
+    end
+
+    test "parses tuple with numbers and strings" do
+      source = "#[1 \"string\" :keyword]"
+
+      {:ok, result} = CljCompiler.Reader.parse(source, "test.clj")
+      assert [{:tuple, [number: 1, string: "string", keyword: :keyword], _}] = result
+    end
+
+    test "parses nested tuples" do
+      source = "#[[:a :b] [:c :d]]"
+
+      {:ok, result} = CljCompiler.Reader.parse(source, "test.clj")
+      assert [{:tuple, [{:vector, _}, {:vector, _}], _}] = result
+    end
+
+    test "parses tuple with list inside" do
+      {:ok, result} = CljCompiler.Reader.parse("#[(list 1 2 3)]", "test.clj")
+      assert [{:tuple, [{:list, _}], _}] = result
+    end
+
+    test "tuple in function definition" do
+      source = """
+      (ns test.tuple)
+
+      (defn get-pair [] #[:a :b])
+      """
+
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
+      defn_form = List.last(ast)
+
+      assert {:list,
+              [_, {:symbol, "get-pair"}, {:vector, []}, {:tuple, [keyword: :a, keyword: :b]}],
+              _} = defn_form
+    end
+
+    test "translates tuple to Elixir AST" do
+      source = "#[:a :b]"
+
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert result == [{:{}, [], [:a, :b]}]
+    end
+
+    test "translates empty tuple to Elixir AST" do
+      source = "#[]"
+
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert result == [{:{}, [], []}]
+    end
+
+    test "translates tuple with nested map" do
+      source = "#[{:a 1} [1 2]]"
+
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert [{:{}, _, [map_ast, vector_ast]}] = result
+      assert {:%{}, _, _} = map_ast
+      assert [1, 2] = vector_ast
+    end
+
+    test "tuple in let binding" do
+      source = """
+      (ns test.tuple)
+
+      (defn get-tuple []
+        (let [t #[:a :b]]
+          t))
+      """
+
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+    end
+
+    test "tuple as function return" do
+      source = """
+      (ns test.tuple)
+
+      (defn return-tuple [] #[:a :b])
+      """
+
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert Enum.any?(result, fn
+               {:def, _meta, [{:return_tuple, _fn_meta, _params}, [do: {:{}, _, [:a, :b]}]]} ->
+                 true
+
+               _ ->
+                 false
+             end)
+    end
+
+    test "tuple with comments" do
+      source = """
+      (ns test.tuple)
+
+      (defn with-comment []
+        #[:a ; comment
+          :b])
+      """
+
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
+      defn_form = List.last(ast)
+
+      assert {:list,
+              [_, {:symbol, "with-comment"}, {:vector, []}, {:tuple, [keyword: :a, keyword: :b]}],
+              _} = defn_form
+    end
+
+    test "tuple with discard directive" do
+      source = """
+      (ns test.tuple)
+
+      (defn with-discard []
+        #[:a #_ :skip :b])
+      """
+
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
+      defn_form = List.last(ast)
+
+      assert {:list,
+              [_, {:symbol, "with-discard"}, {:vector, []}, {:tuple, [keyword: :a, keyword: :b]}],
+              _} = defn_form
+    end
+
+    test "missing closing bracket for tuple" do
+      source = "#[{:a :b"
+
+      error =
+        assert_raise CljCompiler.Reader.ParseError, fn ->
+          CljCompiler.Reader.parse(source, "test.clj")
+        end
+
+      assert error.line == 1
+      assert error.column == 1
+      assert error.message =~ "Missing closing tuple for opening at line 1, column 1"
+    end
+
+    test "tuple with keyword-module call" do
+      source = """
+      (ns test.tuple)
+
+      (defn test-call [] (:erlang/unique_integer []))
+      """
+
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert is_list(result)
+
+      assert Enum.any?(result, fn
+               {:def, _, [{:test_call, _, _}, [do: call]]} ->
+                 # Call is {{:., [], [:erlang, :unique_integer]}, [], [[]]}
+                 match?({:., _, [:erlang, :unique_integer]}, elem(call, 0))
+
+               _ ->
+                 false
+             end)
+    end
+  end
+
+  describe "tuple syntax integration with compile_code!" do
+    defmodule TupleProject do
+      use CljCompiler, dir: "test/fixtures/lib/clj/test_tuple"
+    end
+
+    test "compiles and returns simple tuple" do
+      assert TupleProject.Test.Tuple.get_pair() == {:a, :b}
+    end
+
+    test "compiles and returns empty tuple" do
+      assert TupleProject.Test.Tuple.empty_tuple() == {}
+    end
+
+    test "compiles tuple with multiple elements" do
+      assert TupleProject.Test.Tuple.multi() == {:a, 1, "string", :keyword}
+    end
+
+    test "compiles tuple with nested map and vector" do
+      assert TupleProject.Test.Tuple.nested() == {%{a: 1}, [1, 2]}
+    end
+
+    test "tuple as let binding value" do
+      assert TupleProject.Test.Tuple.let_tuple() == {:x, :y}
+    end
+
+    test "tuple as function argument" do
+      assert TupleProject.Test.Tuple.use_tuple() == {:a, :b}
+    end
+
+    test "tuple with nested tuples" do
+      # Vectors inside tuple remain as lists in Elixir
+      assert TupleProject.Test.Tuple.nested_tuples() == {[:a], [:b, :c]}
+    end
+
+    test "tuple with comments" do
+      assert TupleProject.Test.Tuple.with_comment() == {:a, :b}
+    end
+
+    test "tuple with discard directive" do
+      assert TupleProject.Test.Tuple.with_discard() == {:a, :b}
+    end
+
+    test "tuple in map value" do
+      assert TupleProject.Test.Tuple.get_data() == %{pair: {:x, :y}}
+    end
+
+    test "multiple tuple returns" do
+      assert TupleProject.Test.Tuple.pair() == {:a, :b}
+      assert TupleProject.Test.Tuple.triple() == {:x, :y, :z}
+    end
+
+    test "tuple in nested let" do
+      assert TupleProject.Test.Tuple.nested_let() == {:a, :b}
+    end
+  end
 end

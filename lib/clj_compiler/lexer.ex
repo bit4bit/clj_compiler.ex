@@ -66,6 +66,9 @@ defmodule CljCompiler.Lexer do
   # --- Discard ---
   defparsec(:discard, string("#_") |> tag(:discard))
 
+  # --- Tuple ---
+  defparsec(:tuple_open, string("#[") |> unwrap_and_tag(:tuple_open))
+
   # --- Comment ---
   defparsec(
     :comment,
@@ -84,6 +87,7 @@ defmodule CljCompiler.Lexer do
       parsec(:number),
       parsec(:keyword),
       parsec(:discard),
+      parsec(:tuple_open),
       parsec(:paren_open),
       parsec(:paren_close),
       parsec(:bracket_open),
