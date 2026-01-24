@@ -1310,7 +1310,7 @@ defmodule CljCompilerTest do
       """
 
       assert_raise CompileError, ~r/Duplicate arity clauses/, fn ->
-        CljCompiler.compile_file!(code, TestDup)
+        CljCompiler.compile_code!(code, TestDup)
       end
     end
 
@@ -1321,7 +1321,7 @@ defmodule CljCompilerTest do
       """
 
       assert_raise CompileError, ~r/Invalid arity clause/, fn ->
-        CljCompiler.compile_file!(code, TestEmpty)
+        CljCompiler.compile_code!(code, TestEmpty)
       end
     end
 
