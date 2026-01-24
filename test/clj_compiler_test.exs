@@ -1332,4 +1332,7 @@ defmodule CljCompilerTest do
       assert MultiArityProject.Single.add(2, 3) == 5
     end
   end
+  
+  (use: [Compat])
+  
 end
