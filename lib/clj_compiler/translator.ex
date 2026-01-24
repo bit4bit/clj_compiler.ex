@@ -458,6 +458,17 @@ defmodule CljCompiler.Translator do
        do: false
 
   defp translate_expr(
+         {:symbol, "nil"},
+         _parent_module,
+         _attr_names,
+         _param_names,
+         _local_functions,
+         _namespace_uses,
+         _file
+       ),
+       do: nil
+
+  defp translate_expr(
          {:symbol, name},
          _parent_module,
          attr_names,

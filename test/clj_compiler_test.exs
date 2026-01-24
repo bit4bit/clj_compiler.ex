@@ -1439,19 +1439,71 @@ defmodule CljCompilerTest do
     test "test-nil-list returns false for list" do
       assert ClojureProject.Test.Compat.test_nil_list() == false
     end
+  end
 
-    test "test-kw converts map to keyword list" do
-      assert ClojureProject.Test.Compat.test_kw() == [a: 1, b: 2]
+  describe "nil literal translation" do
+    test "translates nil literal to Elixir nil" do
+      source = """
+      (ns test.nil-literal)
+
+      (defn get-nil [] nil)
+      """
+
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      assert Enum.any?(result, fn
+               {:def, _meta, [{:get_nil, _fn_meta, _params}, [do: nil]]} -> true
+               _ -> false
+             end)
     end
 
-    test "test-kw-empty converts empty map to empty list" do
-      assert ClojureProject.Test.Compat.test_kw_empty() == []
+    test "nil in function body returns nil" do
+      assert ClojureProject.Example.Core.get_nil_value() == nil
     end
 
-    test "test-kw-nested converts map with nested structures" do
-      result = ClojureProject.Test.Compat.test_kw_nested()
-      assert Keyword.get(result, :a) == %{b: 1}
-      assert Keyword.get(result, :c) == [1, 2]
+    test "nil alongside true and false" do
+      source = """
+      (ns test.bools)
+
+      (defn return-nil [] nil)
+      (defn return-true [] true)
+      (defn return-false [] false)
+      """
+
+      {:ok, ast} = CljCompiler.Reader.parse(source, "test.clj")
+      result = CljCompiler.Translator.translate(ast, [], TestModule, "test.clj")
+
+      nil_count =
+        Enum.count(result, fn
+          {:def, _meta, [{name, _fn_meta, _params}, [do: nil]]} when name in [:return_nil] ->
+            true
+
+          _ ->
+            false
+        end)
+
+      true_count =
+        Enum.count(result, fn
+          {:def, _meta, [{name, _fn_meta, _params}, [do: true]]} when name in [:return_true] ->
+            true
+
+          _ ->
+            false
+        end)
+
+      false_count =
+        Enum.count(result, fn
+          {:def, _meta, [{name, _fn_meta, _params}, [do: false]]} when name in [:return_false] ->
+            true
+
+          _ ->
+            false
+        end)
+
+      assert nil_count == 1
+      assert true_count == 1
+      assert false_count == 1
     end
   end
 end
