@@ -44,4 +44,8 @@ defmodule CljCompiler.Compat do
   def nil?(value) do
     is_nil(value)
   end
+
+  def kw(map) when is_map(map) do
+    Map.to_list(map) |> Keyword.new()
+  end
 end
