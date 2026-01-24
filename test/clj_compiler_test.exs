@@ -350,6 +350,16 @@ defmodule CljCompilerTest do
     assert CljCompilerTest.UseTestProject.UseExample.Multiple.has_multiple() == true
   end
 
+  test "namespace with multiple :use declarations on separate lines" do
+    assert function_exported?(
+             CljCompilerTest.UseTestProject.UseExample.MultiLine,
+             :check_multi_line,
+             0
+           )
+
+    assert CljCompilerTest.UseTestProject.UseExample.MultiLine.check_multi_line() == true
+  end
+
   test "namespace with :use with atom option" do
     assert function_exported?(CljCompilerTest.UseTestProject.UseExample.WithAtom, :atom_option, 0)
     assert CljCompilerTest.UseTestProject.UseExample.WithAtom.atom_option() == :controller
@@ -1438,6 +1448,10 @@ defmodule CljCompilerTest do
 
     test "test-nil-list returns false for list" do
       assert ClojureProject.Test.Compat.test_nil_list() == false
+    end
+
+    test "CljCompiler.Compat with multi-line :use declarations" do
+      assert ClojureProject.Example.CompatMultiLine.test_multi_line_compat() == 2
     end
   end
 

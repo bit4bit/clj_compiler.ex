@@ -47,3 +47,23 @@ defmodule CljCompilerTest.TestUseModuleWithAtom do
     end
   end
 end
+
+defmodule CljCompilerTest.TestUseModuleMultiLineA do
+  defmacro __using__(_opts) do
+    quote do
+      def from_multi_a, do: true
+    end
+  end
+end
+
+defmodule CljCompilerTest.TestUseModuleMultiLineB do
+  defmacro __using__(_opts) do
+    quote do
+      def from_multi_b, do: true
+
+      def has_multi_line do
+        from_multi_a() and from_multi_b()
+      end
+    end
+  end
+end
